@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Rankings from './components/Rankings';
@@ -8,78 +9,167 @@ import Profile from './components/Profile';
 import Studies from './components/Studies';
 import Community from './components/Community';
 import Settings from './components/Settings';
-import { Screen, UserStats, RankingEntry, Badge } from './types';
-
-const MOCK_RANKINGS: RankingEntry[] = [
-  { rank: 1, name: 'Mateo G.', xp: 1200, avatar: 'https://picsum.photos/seed/mateo/100/100', title: 'Guerrero de la Fe' },
-  { rank: 2, name: 'Sofía R.', xp: 950, avatar: 'https://picsum.photos/seed/sofia/100/100', title: 'Exploradora' },
-  { rank: 3, name: 'Lucas P.', xp: 820, avatar: 'https://picsum.photos/seed/lucas/100/100', title: 'Discípulo' },
-  { rank: 4, name: 'Isabella M.', xp: 780, avatar: 'https://picsum.photos/seed/isabella/100/100', title: 'Lectora Diaria' },
-  { rank: 5, name: 'Daniel K.', xp: 750, avatar: 'https://picsum.photos/seed/daniel/100/100', title: 'Novato' },
-  { rank: 6, name: 'Ana S.', xp: 620, avatar: 'https://picsum.photos/seed/ana/100/100', title: 'Principiante' },
-  { rank: 7, name: 'Juan Pérez (Tú)', xp: 590, avatar: 'https://picsum.photos/seed/juan/100/100', title: 'Discípulo', isMe: true },
-  { rank: 8, name: 'Carlos V.', xp: 550, avatar: 'https://picsum.photos/seed/carlos/100/100', title: 'Principiante' },
-];
-
-const MOCK_BADGES: Badge[] = [
-  { id: '1', name: 'Primeros Pasos', icon: 'footprint', unlocked: true, date: '12 Oct' },
-  { id: '2', name: 'Lector Diario', icon: 'calendar_month', unlocked: true, date: '19 Oct' },
-  { id: '3', name: 'Guerrero de Oración', icon: 'volunteer_activism', unlocked: false, progress: 12, total: 30 },
-  { id: '4', name: 'Teólogo Experto', icon: 'school', unlocked: false, progress: 1, total: 10 },
-];
+import Auth from './components/Auth';
+import { UserStats, RankingEntry, Badge } from './types';
+import { supabase } from './services/supabase.ts';
+import SabbathSchool from './components/SabbathSchool';
+import Admin from './components/Admin';
+import { getCurrentUser } from './services/auth';
+import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
-  const [activeScreen, setActiveScreen] = useState<Screen>('dashboard');
+  const [session, setSession] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Default stats until loaded
   const [userStats, setUserStats] = useState<UserStats>({
-    level: 5,
-    xp: 350,
-    maxXp: 500,
-    streak: 12,
-    totalXp: 4500,
-    badges: 8,
+    level: 1,
+    xp: 0,
+    maxXp: 100,
+    streak: 0,
+    totalXp: 0,
+    badges: 0,
   });
 
-  const handleStudyComplete = (xp: number) => {
-    setUserStats(prev => ({
-      ...prev,
-      xp: prev.xp + xp,
-      totalXp: prev.totalXp + xp,
-      xp_to_next: prev.maxXp - (prev.xp + xp)
-    }));
-    setActiveScreen('dashboard');
-  };
+  const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
 
-  const renderScreen = () => {
-    switch (activeScreen) {
-      case 'dashboard':
-        return <Dashboard stats={userStats} rankings={MOCK_RANKINGS} setActiveScreen={setActiveScreen} />;
-      case 'studies':
-        return <Studies setActiveScreen={setActiveScreen} />;
-      case 'rankings':
-        return <Rankings rankings={MOCK_RANKINGS} />;
-      case 'community':
-        return <Community />;
-      case 'reading':
-        return <ReadingRoom onComplete={handleStudyComplete} />;
-      case 'profile':
-        return <Profile stats={userStats} badges={MOCK_BADGES} />;
-      case 'settings':
-        return <Settings />;
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
-            <span className="material-symbols-outlined text-6xl">construction</span>
-            <p>Pantalla en desarrollo: {activeScreen}</p>
-            <button onClick={() => setActiveScreen('dashboard')} className="text-primary font-bold underline">Volver al inicio</button>
-          </div>
-        );
+  useEffect(() => {
+    // Check active session
+    getCurrentUser().then(user => {
+      setSession(user);
+      if (user) loadUserData(user.id);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session?.user ?? null);
+      if (session?.user) {
+        loadUserData(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadUserData = async (userId: string) => {
+    try {
+      // 1. Get Profile
+      let { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code === 'PGRST116') {
+        // Create profile if not exists
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([{ id: userId, username: session?.email?.split('@')[0] || 'Usuario' }])
+          .select()
+          .single();
+
+        if (!createError) profile = newProfile;
+      }
+
+      if (profile) {
+        setUserStats({
+          level: profile.level || 1,
+          xp: profile.xp || 0,
+          maxXp: (profile.level || 1) * 100, // Simple formula
+          streak: profile.streak || 0,
+          totalXp: profile.xp || 0, // Simplified for now
+          badges: profile.badges_count || 0
+        });
+      }
+
+      // 2. Get Badges (Both available and unlocked)
+      const { data: allBadges } = await supabase.from('badges').select('*');
+      const { data: userBadges } = await supabase.from('user_badges').select('*').eq('user_id', userId);
+
+      if (allBadges) {
+        const mappedBadges: Badge[] = allBadges.map(b => {
+          const userBadge = userBadges?.find(ub => ub.badge_id === b.id);
+          return {
+            id: b.id,
+            name: b.name,
+            icon: b.icon,
+            unlocked: !!userBadge?.unlocked,
+            date: userBadge?.unlocked_at ? new Date(userBadge.unlocked_at).toLocaleDateString() : undefined,
+            progress: userBadge?.progress || 0,
+            total: b.total_required
+          };
+        });
+        setBadges(mappedBadges);
+      }
+
+    } catch (error) {
+      console.error("Error loading user data:", error);
     }
   };
 
+  const handleStudyComplete = async (xp: number, data?: { reflection: string; verse: string; reference: string }) => {
+    if (!session) return;
+
+    // Optimistic update
+    setUserStats(prev => ({
+      ...prev,
+      xp: prev.xp + xp,
+      totalXp: prev.totalXp + xp
+    }));
+    // Note: In Router mode, we should navigate back to dashboard/studies.
+    // For now, we assume the component handles navigation or we don't force it here yet.
+    // Ideally ReadingRoom calls onComplete and then internal navigation.
+
+    // DB Update
+    try {
+      // 1. Update XP
+      const { error } = await supabase.rpc('increment_xp', { amount: xp, user_id: session.id });
+      if (error) {
+        const { data: current } = await supabase.from('profiles').select('xp').eq('id', session.id).single();
+        if (current) {
+          await supabase.from('profiles').update({ xp: current.xp + xp }).eq('id', session.id);
+        }
+      }
+
+      // 2. Save Reading Record
+      if (data) {
+        await supabase.from('daily_readings').insert({
+          user_id: session.id,
+          verse: data.verse,
+          reference: data.reference,
+          reflection: data.reflection
+        });
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  if (loading) return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>;
+
+  if (!session) {
+    return <Auth onLoginSuccess={() => { }} />;
+  }
+
   return (
-    <Layout activeScreen={activeScreen} setActiveScreen={setActiveScreen} userStats={userStats}>
-      {renderScreen()}
-    </Layout>
+    <Router>
+      <Layout userStats={userStats}>
+        <Routes>
+          <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
+          <Route path="/studies" element={<Studies />} />
+          <Route path="/rankings" element={<Rankings rankings={rankings} />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
+          <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/sabbath_school" element={<SabbathSchool />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </Router>
   );
 };
 

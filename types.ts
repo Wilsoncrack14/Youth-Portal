@@ -1,5 +1,5 @@
 
-export type Screen = 'dashboard' | 'studies' | 'rankings' | 'community' | 'profile' | 'reading' | 'settings';
+export type Screen = 'dashboard' | 'studies' | 'rankings' | 'community' | 'profile' | 'reading' | 'settings' | 'sabbath_school' | 'admin';
 
 export interface UserStats {
   level: number;

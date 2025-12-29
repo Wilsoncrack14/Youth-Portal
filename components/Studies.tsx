@@ -1,10 +1,7 @@
 
 import React, { useState } from 'react';
-import { Study, Screen } from '../types';
-
-interface StudiesProps {
-  setActiveScreen: (s: Screen) => void;
-}
+import { Study } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 const MOCK_STUDIES: Study[] = [
   { id: '1', title: 'El Conflicto de los Siglos', category: 'Historia', progress: 65, totalLessons: 12, completedLessons: 8, image: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?q=80&w=400&h=250&auto=format&fit=crop' },
@@ -13,12 +10,13 @@ const MOCK_STUDIES: Study[] = [
   { id: '4', title: 'Caminando con Dios', category: 'Vida Cristiana', progress: 10, totalLessons: 8, completedLessons: 1, image: 'https://images.unsplash.com/photo-1473163928189-3f40ddc749bd?q=80&w=400&h=250&auto=format&fit=crop' },
 ];
 
-const Studies: React.FC<StudiesProps> = ({ setActiveScreen }) => {
+const Studies: React.FC = () => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('Todos');
   const categories = ['Todos', 'Profecía', 'Historia', 'Evangelios', 'Vida Cristiana'];
 
-  const filteredStudies = filter === 'Todos' 
-    ? MOCK_STUDIES 
+  const filteredStudies = filter === 'Todos'
+    ? MOCK_STUDIES
     : MOCK_STUDIES.filter(s => s.category === filter);
 
   return (
@@ -31,12 +29,11 @@ const Studies: React.FC<StudiesProps> = ({ setActiveScreen }) => {
 
         <div className="flex gap-2 overflow-x-auto pb-2">
           {categories.map(cat => (
-            <button 
+            <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all shrink-0 ${
-                filter === cat ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-[#292938] text-gray-400 hover:text-white'
-              }`}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all shrink-0 ${filter === cat ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-[#292938] text-gray-400 hover:text-white'
+                }`}
             >
               {cat}
             </button>
@@ -63,8 +60,8 @@ const Studies: React.FC<StudiesProps> = ({ setActiveScreen }) => {
                 <div className="w-full bg-[#292938] h-1.5 rounded-full overflow-hidden mb-6">
                   <div className="bg-primary h-full rounded-full" style={{ width: `${study.progress}%` }}></div>
                 </div>
-                <button 
-                  onClick={() => setActiveScreen('reading')}
+                <button
+                  onClick={() => navigate('/reading')}
                   className="mt-auto w-full bg-[#292938] hover:bg-primary text-white font-bold py-3 rounded-xl transition-all border border-white/5 hover:border-primary/50"
                 >
                   {study.progress === 100 ? 'Repasar Curso' : 'Continuar Estudio'}

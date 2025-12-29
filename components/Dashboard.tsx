@@ -1,14 +1,58 @@
 
 import React from 'react';
-import { Screen, UserStats, RankingEntry } from '../types';
+import { UserStats, RankingEntry } from '../types';
+import { getCurrentQuarterlyInfo, QuarterlyInfo } from '../services/quarterly';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   stats: UserStats;
   rankings: RankingEntry[];
-  setActiveScreen: (s: Screen) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
+  const navigate = useNavigate();
+  const [dailyReading, setDailyReading] = React.useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
+  const [quarterly, setQuarterly] = React.useState<QuarterlyInfo | null>(null);
+  const [timeRemaining, setTimeRemaining] = React.useState<string>("");
+
+  React.useEffect(() => {
+    // Load Quarterly Info
+    getCurrentQuarterlyInfo().then(setQuarterly);
+
+    let interval: NodeJS.Timeout;
+    import('../services/biblePlan').then(async (module) => {
+      try {
+        const data = await module.fetchDailyChapter();
+        setDailyReading(data);
+
+        // Start Countdown Timer
+        const updateTimer = () => {
+          const now = new Date();
+          const nextTime = module.getNextReadingTime();
+          const diff = nextTime.getTime() - now.getTime();
+
+          if (diff <= 0) {
+            setTimeRemaining("¡Ya disponible!");
+            // Optionally reload reading here
+          } else {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+          }
+        };
+
+        updateTimer();
+        interval = setInterval(updateTimer, 1000);
+
+      } catch (error) {
+        console.error("Failed to load daily reading preview", error);
+      }
+    });
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
       <div className="max-w-6xl mx-auto flex flex-col gap-8">
@@ -17,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
           <div className="flex-1 flex flex-col justify-center gap-2">
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">¡Hola, Juan! 👋</h1>
             <p className="text-gray-400 text-lg">Manten tu racha activa. ¡Lo estás haciendo genial!</p>
-            
+
             <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-[#1e1e2d] to-[#161621] border border-[#292938] shadow-lg">
               <div className="flex justify-between items-end mb-2">
                 <div>
@@ -36,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
           </div>
 
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 md:max-w-md">
-            <div className="glass-card p-4 rounded-xl flex flex-col justify-between h-full bg-[#1A1A24] cursor-pointer" onClick={() => setActiveScreen('rankings')}>
+            <div className="glass-card p-4 rounded-xl flex flex-col justify-between h-full bg-[#1A1A24] cursor-pointer" onClick={() => navigate('/rankings')}>
               <div className="size-10 rounded-full bg-accent-gold/10 flex items-center justify-center text-accent-gold mb-3">
                 <span className="material-symbols-outlined">local_fire_department</span>
               </div>
@@ -54,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
                 <p className="text-xs text-gray-400 uppercase tracking-wide">XP Total</p>
               </div>
             </div>
-            <div className="glass-card p-4 rounded-xl flex flex-col justify-between h-full bg-[#1A1A24] col-span-2 sm:col-span-1" onClick={() => setActiveScreen('profile')}>
+            <div className="glass-card p-4 rounded-xl flex flex-col justify-between h-full bg-[#1A1A24] col-span-2 sm:col-span-1" onClick={() => navigate('/profile')}>
               <div className="size-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 mb-3">
                 <span className="material-symbols-outlined">military_tech</span>
               </div>
@@ -70,7 +114,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Estudios de Hoy</h2>
-            <button onClick={() => setActiveScreen('studies')} className="text-primary text-sm font-medium hover:text-white transition-colors underline-offset-4 hover:underline">Ver Todos</button>
+            <button onClick={() => navigate('/studies')} className="text-primary text-sm font-medium hover:text-white transition-colors underline-offset-4 hover:underline">Ver Todos</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -87,15 +131,31 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
                       <p className="text-sm text-gray-400">Lectura Bíblica Diaria</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-[#292938] text-xs font-medium text-gray-300 border border-white/5">Pendiente</span>
+                  <div className="flex flex-col items-end">
+                    <span className="px-2.5 py-1 rounded-lg bg-[#292938] text-xs font-medium text-gray-300 border border-white/5">
+                      {timeRemaining ? `Próximo: ${timeRemaining}` : 'Cargando...'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex-1 flex flex-col justify-center py-4">
-                  <h4 className="text-3xl font-bold text-white">Salmos 23</h4>
-                  <p className="text-gray-400 text-sm mt-1 line-clamp-2">"Jehová es mi pastor; nada me faltará. En lugares de delicados pastos me hará descansar..."</p>
+                  {dailyReading ? (
+                    <>
+                      <h4 className="text-3xl font-bold text-white">{dailyReading.reference}</h4>
+                      <p className="text-gray-400 text-sm mt-1 line-clamp-3">
+                        "{dailyReading.text.substring(0, 150)}..."
+                      </p>
+                    </>
+                  ) : (
+                    <div className="animate-pulse flex flex-col gap-2">
+                      <div className="h-8 bg-white/10 rounded w-1/2"></div>
+                      <div className="h-4 bg-white/5 rounded w-full"></div>
+                      <div className="h-4 bg-white/5 rounded w-3/4"></div>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-4">
-                  <button 
-                    onClick={() => setActiveScreen('reading')}
+                  <button
+                    onClick={() => navigate('/reading')}
                     className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25"
                   >
                     <span className="material-symbols-outlined text-[20px]">play_circle</span>
@@ -124,20 +184,31 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
                   </div>
                 </div>
                 <div className="flex-1 flex flex-col justify-center py-2">
-                  <h4 className="text-xl font-bold text-white mb-1">Lección 4: El Conflicto Cósmico</h4>
-                  <p className="text-gray-400 text-sm mb-4">Entiende el gran conflicto entre el bien y el mal en el contexto de la salvación.</p>
+                  <h4 className="text-xl font-bold text-white mb-1">
+                    {quarterly?.title || "Cargando Trimestre..."}
+                  </h4>
+                  <p className="text-gray-400 text-sm mb-4">
+                    {quarterly ? `Estudio: ${quarterly.books}` : "Obteniendo datos..."}
+                  </p>
+
+                  {quarterly && (
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span>Autor: {quarterly.author}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
                     <span>Progreso Semanal</span>
-                    <span className="text-white font-bold">3/7 Días</span>
+                    <span className="text-white font-bold">1/13 Semanas</span>
                   </div>
                   <div className="flex gap-1">
-                    {[1,2,3].map(i => <div key={i} className="h-1.5 flex-1 rounded-full bg-primary"></div>)}
-                    {[4,5,6,7].map(i => <div key={i} className="h-1.5 flex-1 rounded-full bg-[#3d3d52]"></div>)}
+                    {[1].map(i => <div key={i} className="h-1.5 flex-1 rounded-full bg-primary"></div>)}
+                    {Array.from({ length: 12 }).map((_, i) => <div key={i} className="h-1.5 flex-1 rounded-full bg-[#3d3d52]"></div>)}
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5">
-                  <button onClick={() => setActiveScreen('studies')} className="w-full bg-[#292938] hover:bg-[#323246] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-white/5">
-                    Continuar Estudio
+                  <button onClick={() => navigate('/sabbath_school')} className="w-full bg-[#292938] hover:bg-[#323246] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-white/5">
+                    Ir al Estudio
                     <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                   </button>
                 </div>
@@ -164,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings, setActiveScreen 
           <div className="glass-panel rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">Líderes</h3>
-              <button onClick={() => setActiveScreen('rankings')} className="text-xs text-primary font-bold uppercase hover:underline">Ver Todos</button>
+              <button onClick={() => navigate('/rankings')} className="text-xs text-primary font-bold uppercase hover:underline">Ver Todos</button>
             </div>
             <div className="flex flex-col gap-3">
               {rankings.slice(0, 3).map((r) => (

@@ -1,7 +1,9 @@
-
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Settings: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
       <div className="max-w-3xl mx-auto flex flex-col gap-8">
@@ -58,6 +60,17 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
+          <div className="p-6">
+            <h3 className="text-lg font-bold text-white mb-6">Administración</h3>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-[#292938] text-white border border-white/10 px-6 py-3 rounded-xl text-sm font-bold hover:bg-white/5 transition-all w-full md:w-auto flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined">admin_panel_settings</span>
+              Acceder al Panel de Admin
+            </button>
+          </div>
+
           <div className="p-6 bg-red-500/5">
             <h3 className="text-lg font-bold text-red-400 mb-6">Zona de Peligro</h3>
             <button className="text-red-400 border border-red-400/20 px-6 py-2 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition-all">
@@ -66,8 +79,8 @@ const Settings: React.FC = () => {
           </div>
         </section>
         <div className="flex justify-end gap-3">
-            <button className="px-6 py-2.5 rounded-xl text-gray-400 font-bold hover:text-white">Cancelar</button>
-            <button className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">Guardar Cambios</button>
+          <button className="px-6 py-2.5 rounded-xl text-gray-400 font-bold hover:text-white">Cancelar</button>
+          <button className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20">Guardar Cambios</button>
         </div>
       </div>
     </div>

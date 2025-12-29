@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { analyzeReflection } from '../services/gemini';
+import { fetchDailyChapter, BIBLE_BOOKS_List } from '@/services/biblePlan';
 
 interface ReadingRoomProps {
-  onComplete: (xp: number) => void;
+  onComplete: (xp: number, data?: { reflection: string; verse: string; reference: string }) => void;
 }
 
 const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
@@ -12,34 +12,113 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
+  const [chapterData, setChapterData] = useState<{ reference: string; text: string; book: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Manual Selection State - Initialize empty, will be populated by daily reading
+  const [searchBook, setSearchBook] = useState("");
+  const [searchChapter, setSearchChapter] = useState(0);
+
+  useEffect(() => {
+    loadReading();
+  }, []);
+
+  const loadReading = async (book?: string, chapter?: number) => {
+    setLoading(true);
+
+    let data;
+    // Specific search
+    if (book && chapter) {
+      data = await fetchDailyChapter(book, chapter);
+    } else {
+      // Default to daily reading if no args provided (initial load)
+      data = await fetchDailyChapter();
+    }
+
+    setChapterData(data);
+
+    // Sync search inputs with loaded data
+    if (data) {
+      setSearchBook(data.book);
+      setSearchChapter(data.chapter);
+    }
+
+    setLoading(false);
+  };
+
+  const handleSearch = () => {
+    loadReading(searchBook, searchChapter);
+  }
+
   const handleRegister = async () => {
     if (reflection.length < 50 || selectedOption === null) return;
-    
+
     setAnalyzing(true);
+    // Use gemini for analysis only if available, otherwise just mock success
+    // Start with quick feedback for now since user wants free mostly
     const result = await analyzeReflection(reflection);
     setFeedback(result || '¡Gran trabajo!');
     setAnalyzing(false);
-    
+
     setTimeout(() => {
-      onComplete(50);
-    }, 3000);
+      onComplete(50, {
+        reflection,
+        verse: chapterData?.text?.substring(0, 100) + "..." || "",
+        reference: chapterData?.reference || "Lectura Diaria"
+      });
+    }, 2000);
   };
+
+  if (loading) return <div className="text-white text-center p-20 animate-pulse">Cargando lectura...</div>;
 
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
+
+        {/* Selector Section */}
+        <section className="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-center justify-between bg-[#1a1b26] border border-white/5 shadow-md">
+          <div className="flex gap-4 flex-wrap items-center">
+            <select
+              value={searchBook}
+              onChange={(e) => setSearchBook(e.target.value)}
+              className="bg-[#14151f] text-white border border-[#292938] rounded-lg p-2 focus:ring-1 focus:ring-primary outline-none"
+            >
+              {BIBLE_BOOKS_List.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1"
+              max="150"
+              value={searchChapter}
+              onChange={(e) => setSearchChapter(Number(e.target.value))}
+              className="bg-[#14151f] text-white border border-[#292938] rounded-lg p-2 w-20 focus:ring-1 focus:ring-primary outline-none"
+            />
+            <button
+              onClick={handleSearch}
+              className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">search</span>
+              Buscar
+            </button>
+          </div>
+          <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
+            <span className="bg-primary/10 px-2 py-1 rounded">Reavivados</span>
+            <span>•</span>
+            <span>{new Date().toLocaleDateString()}</span>
+          </div>
+        </section>
+
         {/* Lesson Header */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
-              <span className="bg-primary/10 px-2 py-1 rounded">Día 45</span>
-              <span>•</span>
-              <span>Sabiduría</span>
-            </div>
+
+            {/* Removed date header from here since moved up or redundant */}
             <h1 className="text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
-              Confianza en el Señor
+              {chapterData?.book}
             </h1>
-            <p className="text-[#9e9fb7] text-lg font-normal">Lectura Principal: Proverbios 3:1-6</p>
+            <p className="text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
           </div>
         </section>
 
@@ -58,19 +137,8 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
           </div>
 
           <article className="p-8 md:p-12">
-            <div className="font-serif text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto">
-              <p>
-                <span className="text-4xl float-left mr-2 mt-[-10px] text-primary font-bold font-display">1</span>
-                Hijo mío, no te olvides de mi ley, Y tu corazón guarde mis mandamientos; Porque largura de días y años de vida Y paz te aumentarán.
-              </p>
-              <p>
-                <span className="text-primary font-bold text-sm font-display align-top mr-1">3</span>
-                Nunca se aparten de ti la misericordia y la verdad; Atalas a tu cuello, Escríbelas en la tabla de tu corazón; Y hallarás gracia y buena opinión Ante los ojos de Dios y de los hombres.
-              </p>
-              <p className="border-l-4 border-primary/40 pl-6 italic text-gray-400 bg-primary/5 py-4 rounded-r-lg">
-                <span className="text-primary font-bold text-sm font-display align-top mr-1 not-italic">5</span>
-                Fíate de Jehová de todo tu corazón, Y no te apoyes en tu propia prudencia. Reconócelo en todos tus caminos, Y él enderezará tus veredas.
-              </p>
+            <div className="font-serif text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
+              {chapterData?.text}
             </div>
           </article>
         </section>
@@ -79,9 +147,9 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
         <section className="glass-panel rounded-2xl p-6 md:p-8 shadow-lg mb-20">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-primary/20 p-2 rounded-lg text-primary">
-              <span className="material-symbols-outlined">school</span>
+              <span className="material-symbols-outlined">Escuela</span>
             </div>
-            <h3 className="text-xl font-bold text-white">Validación del Estudio</h3>
+            <h3 className="text-xl font-bold text-white">Validación de tu estudio</h3>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
@@ -90,35 +158,33 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
                 <label className="text-sm font-medium text-white">Tu Reflexión</label>
                 <span className="text-xs text-[#9e9fb7]">Mínimo 50 caracteres ({reflection.length})</span>
               </div>
-              <textarea 
+              <textarea
                 className="w-full bg-[#1c1c26] border border-[#292938] rounded-xl p-4 text-gray-300 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all resize-none h-40"
-                placeholder="¿Qué significa para ti 'fiarte de todo corazón'?"
+                placeholder="¿Qué te habló Dios en este capítulo?"
                 value={reflection}
                 onChange={(e) => setReflection(e.target.value)}
               />
             </div>
 
             <div className="flex flex-col gap-4">
-              <span className="text-sm font-medium text-white">Pregunta Rápida</span>
+              <span className="text-sm font-medium text-white">Confirmación</span>
               <div className="bg-[#1c1c26] border border-[#292938] rounded-xl p-5 flex flex-col gap-4">
-                <p className="text-gray-200 font-medium">Según el versículo 5, ¿en qué NO debemos apoyarnos?</p>
+                <p className="text-gray-200 font-medium">He leído el capítulo completo de hoy.</p>
                 <div className="flex flex-col gap-2">
                   {[
-                    { id: 0, label: 'En nuestros amigos' },
-                    { id: 1, label: 'En nuestra propia prudencia' },
-                    { id: 2, label: 'En la suerte' }
+                    { id: 1, label: 'Sí, lo leí completo' },
+                    { id: 0, label: 'Aún no' },
                   ].map((opt) => (
-                    <label 
+                    <label
                       key={opt.id}
-                      className={`relative flex items-center p-3 rounded-lg border transition-all cursor-pointer ${
-                        selectedOption === opt.id 
-                          ? 'border-primary bg-primary/5 text-white' 
-                          : 'border-[#3d3d52] hover:bg-[#2a2a35] text-gray-400'
-                      }`}
+                      className={`relative flex items-center p-3 rounded-lg border transition-all cursor-pointer ${selectedOption === opt.id
+                        ? 'border-primary bg-primary/5 text-white'
+                        : 'border-[#3d3d52] hover:bg-[#2a2a35] text-gray-400'
+                        }`}
                     >
-                      <input 
-                        type="radio" 
-                        name="trivia" 
+                      <input
+                        type="radio"
+                        name="trivia"
                         className="peer h-4 w-4 text-primary bg-transparent"
                         checked={selectedOption === opt.id}
                         onChange={() => setSelectedOption(opt.id)}
@@ -137,13 +203,23 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
               {feedback ? (
                 <p className="text-green-400 animate-pulse">{feedback}</p>
               ) : (
-                <>
-                  <span className="material-symbols-outlined text-lg">info</span>
-                  <span>Completa ambos campos para desbloquear</span>
-                </>
+                <div className="flex flex-col gap-1">
+                  {reflection.length < 50 && (
+                    <span className="text-red-400 text-xs flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">error</span>
+                      Escribe {50 - reflection.length} caracteres más
+                    </span>
+                  )}
+                  {selectedOption === null && (
+                    <span className="text-red-400 text-xs flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">error</span>
+                      Confirma tu lectura
+                    </span>
+                  )}
+                </div>
               )}
             </div>
-            <button 
+            <button
               onClick={handleRegister}
               disabled={analyzing || reflection.length < 50 || selectedOption === null}
               className="w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-blue-600 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
