@@ -28,10 +28,25 @@ export const BOOK_MAPPINGS: { [key: string]: string } = {
 
 export const BIBLE_BOOKS_List = Object.keys(BOOK_MAPPINGS);
 
-// Mapping based on READING_PLAN object
-// Mapping based on READING_PLAN object
-export const SWITCH_HOUR = 0;
-export const SWITCH_MINUTE = 0;
+// Number of chapters per book
+export const BIBLE_CHAPTER_COUNTS: { [key: string]: number } = {
+    "Genesis": 50, "Exodo": 40, "Levitico": 27, "Numeros": 36, "Deuteronomio": 34,
+    "Josue": 24, "Jueces": 21, "Rut": 4, "1 Samuel": 31, "2 Samuel": 24,
+    "1 Reyes": 22, "2 Reyes": 25, "1 Cronicas": 29, "2 Cronicas": 36, "Esdras": 10,
+    "Nehemias": 13, "Ester": 10, "Job": 42, "Salmos": 150, "Proverbios": 31,
+    "Eclesiastes": 12, "Cantares": 8, "Isaias": 66, "Jeremias": 52, "Lamentaciones": 5,
+    "Ezequiel": 48, "Daniel": 12, "Oseas": 14, "Joel": 3, "Amos": 9,
+    "Abdias": 1, "Jonas": 4, "Miqueas": 7, "Nahum": 3, "Habacuc": 3,
+    "Sofonias": 3, "Hageo": 2, "Zacarias": 14, "Malaquias": 4,
+    "Mateo": 28, "Marcos": 16, "Lucas": 24, "Juan": 21, "Hechos": 28,
+    "Romanos": 16, "1 Corintios": 16, "2 Corintios": 13, "Galatas": 6, "Efesios": 6,
+    "Filipenses": 4, "Colosenses": 4, "1 Tesalonicenses": 5, "2 Tesalonicenses": 3,
+    "1 Timoteo": 6, "2 Timoteo": 4, "Tito": 3, "Filemon": 1, "Hebreos": 13,
+    "Santiago": 5, "1 Pedro": 5, "2 Pedro": 3, "1 Juan": 5, "2 Juan": 1,
+    "3 Juan": 1, "Judas": 1, "Apocalipsis": 22
+};
+
+export const START_DATE = new Date('2026-01-01T00:00:00');
 
 export const getNextReadingTime = (): Date => {
     const now = new Date();
@@ -45,20 +60,75 @@ export const getNextReadingTime = (): Date => {
 export const getTodayChapterReference = (date: Date = new Date()) => {
     const now = new Date(date);
 
-    // Al ser 00:00, usamos la fecha natural del sistema.
-    // No necesitamos lógica de "adelantar" lectura.
+    // Calculate days elapsed since START_DATE
+    // Use UTC to avoid timezone shifts messing up the "day count"
+    const start = Date.UTC(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate());
+    const current = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Format Month-Day (0-1 for Jan 1)
-    const key = `${now.getMonth()}-${now.getDate()}`;
+    // Days difference (Floored)
+    let daysDiff = Math.floor((current - start) / (1000 * 60 * 60 * 24));
 
-    const entry = READING_PLAN[key];
-
-    if (entry) {
-        return entry;
+    // If we are before start date, default to Genesis 1 or handle as preview
+    if (daysDiff < 0) {
+        // Option: Show based on a pre-launch plan or just Genesis 1
+        console.log("Before start date, showing Genesis 1 preview.");
+        return { book: "Genesis", chapter: 1 };
     }
 
-    // Fallback
-    return { book: "Genesis", chapter: 1 };
+    // Logic to find current book and chapter
+    // We iterate through books subtracting their chapter counts until we find the current spot
+
+    let dayCounter = daysDiff;
+    let selectedBook = "Genesis";
+    let selectedChapter = 1;
+
+    // Ordered list of books matching BIBLE_CHAPTER_COUNTS keys
+    const bookList = Object.keys(BIBLE_CHAPTER_COUNTS);
+
+    for (const book of bookList) {
+        const chaptersInBook = BIBLE_CHAPTER_COUNTS[book];
+
+        if (dayCounter < chaptersInBook) {
+            // Found the book!
+            selectedBook = book;
+            selectedChapter = dayCounter + 1; // 0-indexed day becomes 1-indexed chapter
+            break;
+        }
+
+        // Subtract this book's chapters and continue to next book
+        dayCounter -= chaptersInBook;
+    }
+
+    // If we run out of books (Bible finished), we loop back to Genesis?
+    // Or we could implement reading plan cycles. 
+    // For now, if dayCounter remains high, it means we finished the bible.
+    // The loop above breaks. If loop finishes without break, it means we passed Rev 22.
+    // Let's simple restart cycle:
+    if (dayCounter >= 0 && !bookList.includes(selectedBook)) { // Valid check if needed, but the loop logic handles 'break'. 
+        // Logic fix: if we exhaust the loop, dayCounter is still positive.
+        // We should wrap the whole dayDiff by total bible chapters first if we want infinite loop.
+        // Total chapters approx 1189.
+        // Let's implement module arithmetic for infinite layout if wished, otherwise it just stays at end.
+        // User asked "y asi cada dia", implying continuous. 
+        // Let's recalculate with Modulo total chapters.
+
+        const TOTAL_CHAPTERS = 1189;
+        daysDiff = daysDiff % TOTAL_CHAPTERS;
+
+        // Re-run finding logic with new daysDiff
+        dayCounter = daysDiff;
+        for (const book of bookList) {
+            const chaptersInBook = BIBLE_CHAPTER_COUNTS[book];
+            if (dayCounter < chaptersInBook) {
+                selectedBook = book;
+                selectedChapter = dayCounter + 1;
+                break;
+            }
+            dayCounter -= chaptersInBook;
+        }
+    }
+
+    return { book: selectedBook, chapter: selectedChapter };
 };
 
 
@@ -99,15 +169,17 @@ export const fetchDailyChapter = async (
     }
 
     try {
-        console.log(`[Direct Fetch] Fetching: ${book} (Resolved: ${resolvedBook}) ${chapter}`);
+        console.log(`[Supabase Function] Fetching: ${book} (Resolved: ${resolvedBook}) ${chapter}`);
 
-        const response = await fetch(`https://biblia-api.vercel.app/api/v1/${apiBook}/${chapter}`);
+        // Use Supabase Edge Function to avoid CORS
+        const { data, error } = await supabase.functions.invoke('bible-api', {
+            body: { book: apiBook, chapter }
+        });
 
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.status}`);
-        }
+        if (error) throw error;
 
-        const data = await response.json();
+        // Handle "error" key in successful JSON response if API logic passed it for some reason
+        if (data.error) throw new Error(data.error);
 
         // Parse "text": ["Verse 1", "Verse 2"...] or "verses": [...]
         let content = "";
@@ -137,7 +209,7 @@ export const fetchDailyChapter = async (
         return result;
 
     } catch (error: any) {
-        console.error("Error fetching (Direct):", error);
+        console.error("Error fetching (Supabase):", error);
 
         return {
             book: book!,

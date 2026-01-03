@@ -3,6 +3,8 @@ import React from 'react';
 import { UserStats, RankingEntry } from '../types';
 import { getCurrentQuarterlyInfo, QuarterlyInfo } from '../services/quarterly';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { getLevelName, getNextLevelName } from '../services/levels';
 
 interface DashboardProps {
   stats: UserStats;
@@ -11,6 +13,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
   const navigate = useNavigate();
+  const { profile } = useUser();
   const [dailyReading, setDailyReading] = React.useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
   const [quarterly, setQuarterly] = React.useState<QuarterlyInfo | null>(null);
   const [timeRemaining, setTimeRemaining] = React.useState<string>("");
@@ -59,23 +62,23 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 flex flex-col justify-center gap-2">
-            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">¡Hola, Juan! 👋</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">¡Hola, {profile?.username || 'Usuario'}! 👋</h1>
             <p className="text-gray-400 text-lg">Manten tu racha activa. ¡Lo estás haciendo genial!</p>
 
             <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-[#1e1e2d] to-[#161621] border border-[#292938] shadow-lg">
               <div className="flex justify-between items-end mb-2">
                 <div>
                   <p className="text-accent-gold text-xs font-bold uppercase tracking-wider mb-1">Nivel Actual</p>
-                  <p className="text-white text-xl font-bold">Nivel {stats.level}: Discípulo</p>
+                  <p className="text-white text-xl font-bold">Nivel {stats.level}: {getLevelName(stats.level - 1, stats.totalXp)}</p>
                 </div>
-                <span className="text-primary font-bold text-lg">{Math.round((stats.xp / stats.maxXp) * 100)}%</span>
+                <span className="text-primary font-bold text-lg">{Math.min(100, Math.round((stats.xp / stats.maxXp) * 100))}%</span>
               </div>
               <div className="w-full bg-[#292938] rounded-full h-3 mb-2 overflow-hidden">
-                <div className="bg-primary h-3 rounded-full relative" style={{ width: `${(stats.xp / stats.maxXp) * 100}%` }}>
+                <div className="bg-primary h-3 rounded-full relative" style={{ width: `${Math.min(100, (stats.xp / stats.maxXp) * 100)}%` }}>
                   <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 text-right">{stats.maxXp - stats.xp} XP para Nivel {stats.level + 1}</p>
+              <p className="text-xs text-gray-500 text-right">{Math.max(0, stats.maxXp - stats.xp)} XP para {getNextLevelName(stats.level, stats.totalXp)}</p>
             </div>
           </div>
 
@@ -155,7 +158,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-4">
                   <button
-                    onClick={() => navigate('/reading')}
+                    onClick={() => navigate('/reading?mode=read')}
                     className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/25"
                   >
                     <span className="material-symbols-outlined text-[20px]">play_circle</span>

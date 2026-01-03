@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4b4ee7;
+  --color-background-light: #f6f6f8;
+  --color-background-dark: #111221;
+  --color-card-dark: #1e1e2d;
+  --color-accent-gold: #fbbf24;
+
+  --font-display: "Lexend", sans-serif;
+  --font-body: "Noto Sans", sans-serif;
+  --font-serif: "Merriweather", serif;
+
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-[#1e1e2d]/60 backdrop-blur-md border border-white/5;
+  }
+
+  .glass-card {
+    @apply bg-white/[0.03] border border-white/[0.08] transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply hover:-translate-y-0.5 hover:border-[#4b4ee7]/40 hover:shadow-lg hover:shadow-black/50;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out forwards;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111221;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d2d3f;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b4ee7;
+}
+
+/* All buttons should have pointer cursor */
+button:not(:disabled) {
+  cursor: pointer;
+}

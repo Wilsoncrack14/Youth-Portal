@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getLessonByDate, SSDay } from '../services/sabbathSchool';
-import { generateQuizQuestion } from '../services/gemini';
+import { generateQuizQuestion } from '../services/ai';
 import { getVerseText } from '../services/biblePlan';
 
 const SabbathSchool: React.FC = () => {
@@ -126,10 +126,30 @@ const SabbathSchool: React.FC = () => {
         <div className="h-full flex flex-col p-4 animate-fade-in-up relative">
             <div className="max-w-4xl mx-auto w-full h-full flex flex-col gap-6">
 
-                {/* Header */}
-                <div className="flex flex-col gap-1">
-                    <span className="text-primary text-sm font-bold tracking-wider uppercase">{lesson.nombre} - {lesson.date}</span>
-                    <h1 className="text-3xl font-black text-white leading-tight">{lesson.title}</h1>
+                {/* Custom Sabbath School Header */}
+                <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#2a2a3e] to-[#1a1b26] border border-white/5 shadow-2xl p-6 md:p-10 mb-6">
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <span className="material-symbols-outlined text-[12rem]">school</span>
+                    </div>
+                    <div className="relative z-10 flex flex-col md:flex-row gap-6 md:items-end md:justify-between">
+                        <div className="space-y-2">
+                            <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-xs font-bold uppercase tracking-wider mb-2">
+                                Escuela Sabática
+                            </span>
+                            <h1 className="text-3xl md:text-5xl font-black text-white leading-tight max-w-2xl">
+                                {lesson.title}
+                            </h1>
+                            <p className="text-gray-400 text-lg">{lesson.nombre} • {lesson.date}</p>
+                        </div>
+                        {/* Day Iterator placeholder (visual mostly for now, can implement logic later) */}
+                        <div className="flex gap-2">
+                            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
+                                <div key={i} className={`size-8 rounded-full flex items-center justify-center text-xs font-bold border ${i === 3 ? 'bg-orange-500 border-orange-500 text-white' : 'bg-transparent border-white/10 text-gray-500'}`}>
+                                    {d}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content Card */}

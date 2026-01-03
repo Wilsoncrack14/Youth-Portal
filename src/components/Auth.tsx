@@ -10,6 +10,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [message, setMessage] = useState('');
 
@@ -23,6 +24,11 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
+                    options: {
+                        data: {
+                            username: username || email.split('@')[0]
+                        }
+                    }
                 });
                 if (error) throw error;
                 setMessage('¡Registro exitoso! Revisa tu email para confirmar.');
@@ -70,6 +76,21 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                             required
                         />
                     </div>
+                    {isSignUp && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Nombre de Usuario</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 focus:outline-none focus:border-primary text-white placeholder-gray-600"
+                                placeholder="tu_usuario"
+                                minLength={3}
+                                maxLength={20}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Opcional - Se usará tu email si lo dejas vacío</p>
+                        </div>
+                    )}
 
                     {message && (
                         <div className={`p-3 rounded-lg text-sm ${message.includes('exitoso') ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>

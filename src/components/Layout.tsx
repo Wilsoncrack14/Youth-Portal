@@ -8,17 +8,27 @@ interface LayoutProps {
   userStats: any;
 }
 
+import { supabase } from '../services/supabase';
+import BibleSearchModal from './BibleSearchModal';
+import AIChatModal from './AIChatModal';
+import { useUser } from '../contexts/UserContext';
+
 const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isChatOpen, setIsChatOpen] = React.useState(false);
+  const { profile } = useUser();
 
   // Simple mapping: /dashboard -> 'dashboard', / -> 'dashboard'
   const currentPath = location.pathname.substring(1) || 'dashboard';
 
   const menuItems = [
-    { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', path: '/' },
-    { id: 'studies', icon: 'menu_book', label: 'Mis Estudios', path: '/studies' },
-    { id: 'rankings', icon: 'trophy', label: 'Rankings', path: '/rankings' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
+    { id: 'reading', label: 'Reavivados', icon: 'auto_stories', path: '/reading' },
+    { id: 'sabbath-school', label: 'Escuela Sabática', icon: 'school', path: '/sabbath-school' },
+    { id: 'bible', label: 'Biblia', icon: 'menu_book', path: '/bible' },
     { id: 'community', icon: 'group', label: 'Comunidad', path: '/community' },
     { id: 'profile', icon: 'person', label: 'Perfil', path: '/profile' },
   ];
@@ -27,8 +37,20 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
     navigate(path);
   };
 
+  const onSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setIsSearchOpen(true);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden">
+      <BibleSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        initialQuery={searchQuery}
+      />
+
       {/* Sidebar */}
       <aside className="hidden lg:flex w-72 flex-col justify-between bg-[#0e0e15] border-r border-[#292938] p-6 shrink-0 h-full overflow-y-auto">
         <div className="flex flex-col gap-8">
@@ -41,12 +63,12 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
 
           <div className="glass-panel p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => handleNavigation('/profile')}>
             <div className="relative">
-              <div className="size-12 rounded-full bg-cover bg-center border-2 border-primary"
-                style={{ backgroundImage: `url('https://picsum.photos/seed/juan/200/200')` }}></div>
+              <div className="size-12 rounded-full bg-cover bg-center border-2 border-primary overflow-hidden"
+                style={{ backgroundImage: profile?.avatar_url ? `url('${profile.avatar_url}')` : `url('https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.username || 'User')}&background=4b4ee7&color=fff')` }}></div>
               <div className="absolute -bottom-1 -right-1 bg-accent-gold text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-[#0e0e15]">LVL {userStats.level}</div>
             </div>
             <div className="flex flex-col overflow-hidden">
-              <h3 className="text-sm font-bold truncate">Juan Pérez</h3>
+              <h3 className="text-sm font-bold truncate">{profile?.username || 'Usuario'}</h3>
               <p className="text-xs text-gray-400 truncate">Discípulo</p>
             </div>
           </div>
@@ -57,8 +79,8 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
                 key={item.id}
                 onClick={() => handleNavigation(item.path)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${(currentPath === item.id || (currentPath === 'dashboard' && item.path === '/'))
-                    ? 'bg-primary text-white shadow-md shadow-primary/20'
-                    : 'text-gray-400 hover:bg-[#292938] hover:text-white'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-gray-400 hover:bg-[#292938] hover:text-white'
                   }`}
               >
                 <span className={`material-symbols-outlined ${currentPath === item.id ? 'fill-1' : ''}`}>{item.icon}</span>
@@ -77,7 +99,14 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
             <span className="material-symbols-outlined">settings</span>
             <span className="text-sm font-medium">Configuración</span>
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              // Force reload or let auth state listener handle it
+              window.location.href = '/';
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+          >
             <span className="material-symbols-outlined">logout</span>
             <span className="text-sm font-medium">Cerrar Sesión</span>
           </button>
@@ -98,7 +127,14 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary transition-colors">
                 <span className="material-symbols-outlined">search</span>
               </div>
-              <input className="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl bg-[#292938] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-[#1e1e2d] sm:text-sm transition-all" placeholder="Buscar lecciones, amigos, versículos..." type="text" />
+              <input
+                className="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl bg-[#292938] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-[#1e1e2d] sm:text-sm transition-all"
+                placeholder="Buscar (ej. Juan 3:16, Salmos 23)..."
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={onSearchSubmit}
+              />
             </div>
           </div>
 
@@ -119,7 +155,22 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
           {children}
         </main>
       </div>
-    </div>
+
+
+      {/* AI Chat Button & Modal */}
+      <button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 z-40 size-14 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
+      >
+        <span className="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">smart_toy</span>
+        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-cyan-500"></span>
+        </span>
+      </button>
+
+      <AIChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+    </div >
   );
 };
 
