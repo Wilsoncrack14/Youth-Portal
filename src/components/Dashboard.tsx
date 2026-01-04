@@ -97,7 +97,11 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
                 <span className="material-symbols-outlined">bolt</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{stats.totalXp / 1000}k</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.totalXp >= 1000
+                    ? `${(stats.totalXp / 1000).toFixed(1)}k`
+                    : stats.totalXp}
+                </p>
                 <p className="text-xs text-gray-400 uppercase tracking-wide">XP Total</p>
               </div>
             </div>

@@ -11,6 +11,7 @@ import Studies from './components/Studies';
 import Community from './components/Community';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
+import UpdatePassword from './components/UpdatePassword';
 import { UserStats, RankingEntry, Badge } from './types';
 import { supabase } from './services/supabase.ts';
 import SabbathSchool from './components/SabbathSchool';
@@ -215,29 +216,34 @@ const App: React.FC = () => {
 
   if (loading) return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>;
 
-  if (!session) {
-    return <Auth onLoginSuccess={() => { }} />;
-  }
-
   return (
     <UserProvider>
       <Router>
-        <Layout userStats={userStats}>
-          <Routes>
-            <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
-            <Route path="/studies" element={<Studies />} />
-            <Route path="/rankings" element={<Rankings rankings={rankings} />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
-            <Route path="/bible" element={<BibleLibrary />} />
-            <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/sabbath-school" element={<SabbathSchool />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/maintenance" element={<Maintenance />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="*" element={
+            !session ? (
+              <Auth onLoginSuccess={() => { }} />
+            ) : (
+              <Layout userStats={userStats}>
+                <Routes>
+                  <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
+                  <Route path="/studies" element={<Studies />} />
+                  <Route path="/rankings" element={<Rankings rankings={rankings} />} />
+                  <Route path="/community" element={<Community />} />
+                  <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
+                  <Route path="/bible" element={<BibleLibrary />} />
+                  <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/sabbath-school" element={<SabbathSchool />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/maintenance" element={<Maintenance />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </Layout>
+            )
+          } />
+        </Routes>
       </Router>
     </UserProvider>
   );
