@@ -19,39 +19,10 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [chaptersRead, setChaptersRead] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [dailyVerse, setDailyVerse] = useState<{ text: string; reference: string; book: string; chapter: number } | null>(null);
   const navigate = useNavigate();
 
-  // Fetch chapters read count
-  React.useEffect(() => {
-    const fetchChaptersRead = async () => {
-      if (!profile?.id) return;
-
-      const { count } = await supabase
-        .from('daily_readings')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', profile.id);
-
-      setChaptersRead(count || 0);
-    };
-
-    fetchChaptersRead();
-
-    // Listen for chapter completion events
-    const handleChapterCompleted = () => {
-      fetchChaptersRead(); // Refresh count when a chapter is completed
-    };
-
-    window.addEventListener('chapterCompleted', handleChapterCompleted);
-
-    return () => {
-      window.removeEventListener('chapterCompleted', handleChapterCompleted);
-    };
-  }, [profile?.id]);
-
-  // Load daily verse
   React.useEffect(() => {
     const loadDailyVerse = async () => {
       const verse = await getDailyVerse(profile?.id);
@@ -101,7 +72,6 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
     setUsernameError('');
 
     try {
-      // Check if username is already taken
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
@@ -115,7 +85,6 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
         return;
       }
 
-      // Update username
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ username: newUsername })
@@ -145,7 +114,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
 
 👤 ${profile?.username || 'Usuario'}
 🏆 Nivel ${stats.level}
-📚 ${chaptersRead} Capítulos Leídos
+📚 ${stats.totalXp} Capítulos Leídos
 🔥 ${stats.streak} Días de Racha
 ⭐ ${stats.xp} / ${stats.maxXp} XP
 
@@ -244,7 +213,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-full">
               <div className="glass-panel rounded-xl p-5 flex flex-col justify-between">
                 <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 w-fit"><span className="material-symbols-outlined text-3xl">menu_book</span></div>
-                <div className="mt-4"><h3 className="text-3xl font-bold text-white">{chaptersRead}</h3><p className="text-slate-400 text-sm">Capítulos Leídos</p></div>
+                <div className="mt-4"><h3 className="text-3xl font-bold text-white">{stats.totalXp}</h3><p className="text-slate-400 text-sm">Capítulos Leídos</p></div>
               </div>
               <div className="glass-panel rounded-xl p-5 flex flex-col justify-between">
                 <div className="p-3 rounded-lg bg-orange-500/10 text-orange-400 w-fit"><span className="material-symbols-outlined text-3xl">local_fire_department</span></div>
@@ -345,7 +314,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
                     <p className="text-xs text-gray-400">Nivel</p>
                   </div>
                   <div className="bg-slate-700/50 rounded-lg p-3">
-                    <p className="text-2xl font-bold text-blue-400">{chaptersRead}</p>
+                    <p className="text-2xl font-bold text-blue-400">{stats.totalXp}</p>
                     <p className="text-xs text-gray-400">Capítulos</p>
                   </div>
                   <div className="bg-slate-700/50 rounded-lg p-3">

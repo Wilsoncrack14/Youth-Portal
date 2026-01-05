@@ -1,9 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
 const Admin: React.FC = () => {
+    const { profile, loading: userLoading } = useUser();
+    const navigate = useNavigate();
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [checkingAdmin, setCheckingAdmin] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [status, setStatus] = useState<string>('');
+
+    useEffect(() => {
+        const checkAdmin = async () => {
+            if (!profile?.id) return;
+
+            const { data } = await supabase
+                .from('admins')
+                .select('user_id')
+                .eq('user_id', profile.id)
+                .single();
+
+            if (data) {
+                setIsAdmin(true);
+            } else {
+                navigate('/dashboard'); // Redirect non-admins
+            }
+            setCheckingAdmin(false);
+        };
+
+        if (!userLoading) {
+            if (!profile) {
+                navigate('/');
+            } else {
+                checkAdmin();
+            }
+        }
+    }, [profile, userLoading, navigate]);
+
+    if (userLoading || checkingAdmin) {
+        return <div className="h-full flex items-center justify-center text-white">Verificando permisos...</div>;
+    }
+
+    if (!isAdmin) return null;
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

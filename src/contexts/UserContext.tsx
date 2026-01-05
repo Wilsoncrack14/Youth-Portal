@@ -1,16 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-
-interface UserProfile {
-    id: string;
-    username: string;
-    email: string;
-    avatar_url: string | null;
-    xp: number;
-    level: number;
-    streak: number;
-    badges_count: number;
-}
+import { useUserData, UserProfile } from '../hooks/useUserData';
+import { User } from '@supabase/supabase-js';
 
 interface UserContextType {
     profile: UserProfile | null;
@@ -20,83 +11,16 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    const fetchProfile = async () => {
-        try {
-            console.log('🔵 [UserContext] Fetching profile...');
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                console.log('⚠️ [UserContext] No user found');
-                setProfile(null);
-                setLoading(false);
-                return;
-            }
-
-            console.log('🔵 [UserContext] User ID:', user.id);
-
-            const { data: profileData, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .maybeSingle();
-
-            if (error) {
-                console.error('❌ [UserContext] Error fetching profile:', error);
-                // Create default profile if it doesn't exist
-                setProfile({
-                    id: user.id,
-                    email: user.email || '',
-                    username: user.email?.split('@')[0] || 'Usuario',
-                    avatar_url: null,
-                    xp: 0,
-                    level: 1,
-                    streak: 0,
-                    badges_count: 0,
-                });
-                setLoading(false);
-                return;
-            }
-
-            console.log('✅ [UserContext] Profile data:', profileData);
-            console.log('🔵 [UserContext] Avatar URL:', profileData?.avatar_url);
-
-            setProfile({
-                id: user.id,
-                email: user.email || '',
-                username: profileData?.username || user.email?.split('@')[0] || 'Usuario',
-                avatar_url: profileData?.avatar_url || null,
-                xp: profileData?.xp || 0,
-                level: profileData?.level || 1,
-                streak: profileData?.streak || 0,
-                badges_count: profileData?.badges_count || 0,
-            });
-
-            console.log('✅ [UserContext] Profile state updated');
-        } catch (error) {
-            console.error('❌ [UserContext] Error fetching profile:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchProfile();
-
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-            fetchProfile();
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+export const UserProvider: React.FC<{ children: React.ReactNode; user: User | null }> = ({ children, user }) => {
+    const { profile, isLoading: userDataLoading, invalidateData } = useUserData(user?.id, user?.email);
 
     const refreshProfile = async () => {
-        setLoading(true);
-        await fetchProfile();
+        await invalidateData();
     };
+
+    // If user exists, we are loading if data is loading. 
+    // If no user, we are not loading.
+    const loading = !!user && userDataLoading;
 
     return (
         <UserContext.Provider value={{ profile, loading, refreshProfile }}>
