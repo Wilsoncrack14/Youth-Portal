@@ -19,6 +19,8 @@ import Admin from './components/Admin';
 import { getCurrentUser } from './services/auth';
 import { User } from '@supabase/supabase-js';
 import { UserProvider } from './contexts/UserContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ColorProvider } from './contexts/ColorContext';
 
 import { useUserData } from './hooks/useUserData';
 
@@ -104,33 +106,37 @@ const App: React.FC = () => {
 
   return (
     <UserProvider user={session}>
-      <Router>
-        <Routes>
-          <Route path="/update-password" element={<UpdatePassword />} />
-          <Route path="*" element={
-            !session ? (
-              <Auth onLoginSuccess={() => { }} />
-            ) : (
-              <Layout userStats={userStats}>
-                <Routes>
-                  <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
-                  <Route path="/studies" element={<Studies />} />
-                  <Route path="/rankings" element={<Rankings rankings={rankings} />} />
-                  <Route path="/community" element={<Community />} />
-                  <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
-                  <Route path="/bible" element={<BibleLibrary />} />
-                  <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/sabbath-school" element={<SabbathSchool />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/maintenance" element={<Maintenance />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </Layout>
-            )
-          } />
-        </Routes>
-      </Router>
+      <ColorProvider>
+        <ThemeProvider>
+          <Router>
+            <Routes>
+              <Route path="/update-password" element={<UpdatePassword />} />
+              <Route path="*" element={
+                !session ? (
+                  <Auth onLoginSuccess={() => { }} />
+                ) : (
+                  <Layout userStats={userStats}>
+                    <Routes>
+                      <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
+                      <Route path="/studies" element={<Studies />} />
+                      <Route path="/rankings" element={<Rankings rankings={rankings} />} />
+                      <Route path="/community" element={<Community />} />
+                      <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
+                      <Route path="/bible" element={<BibleLibrary />} />
+                      <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/sabbath-school" element={<SabbathSchool />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/maintenance" element={<Maintenance />} />
+                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
+                  </Layout>
+                )
+              } />
+            </Routes>
+          </Router>
+        </ThemeProvider>
+      </ColorProvider>
     </UserProvider>
   );
 };

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #4b4ee7;
   --color-background-light: #f6f6f8;
@@ -14,6 +16,12 @@
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
+}
+
+
+/* Accessibility: Force bold text globally */
+body {
+  font-weight: 700;
 }
 
 @layer components {

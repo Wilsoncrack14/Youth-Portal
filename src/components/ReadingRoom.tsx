@@ -77,8 +77,8 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
       </div>
 
       {/* WEEKLY PROGRESS */}
-      <div className="bg-[#1a1b26] border border-white/5 rounded-2xl p-6 md:p-8">
-        <h3 className="font-serif text-2xl font-bold text-white mb-6">Progreso Semanal</h3>
+      <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-none">
+        <h3 className="font-serif text-2xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
         <div className="flex justify-between items-center max-w-3xl mx-auto">
           {days.map((d, i) => {
             const status = i < currentDayIndex ? 'completed' : i === currentDayIndex ? 'active' : 'upcoming';
@@ -88,7 +88,7 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
                 <div className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all
                         ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black' :
                     status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' :
-                      'bg-[#292938] border-[#3d3d52] text-gray-600'}
+                      'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
                      `}>
                   {status === 'completed' && <span className="material-symbols-outlined">check</span>}
                   {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
@@ -110,10 +110,10 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
 
         <div className="max-w-2xl relative z-10">
           <span className="text-gray-500 font-bold text-sm mb-2 block">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-          <h2 className="text-4xl font-serif font-black text-white mb-4">
+          <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4">
             {dailyReading ? dailyReading.reference : "Cargando..."}
           </h2>
-          <p className="text-gray-400 text-lg leading-relaxed mb-8">
+          <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
             {dailyReading ? `"${dailyReading.text.substring(0, 180)}..."` : "Preparando la lectura de hoy..."}
           </p>
 
@@ -125,8 +125,8 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
               <span className="material-symbols-outlined">auto_stories</span>
               Leer Capítulo
             </button>
-            <button className="px-6 py-3 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-green-400">check_circle</span>
+            <button className="px-6 py-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-white/5 transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-green-500 dark:text-green-400">check_circle</span>
               Marcar como Leído
             </button>
           </div>
@@ -137,13 +137,13 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
       <div className="grid gap-4">
         <h3 className="font-bold text-gray-400 text-sm uppercase tracking-widest ml-1">Lecturas Recientes</h3>
         {recentReadings.map((reading, idx) => (
-          <div key={idx} className="bg-[#14151f] hover:bg-[#1a1b26] border border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group">
+          <div key={idx} className="bg-white dark:bg-[#14151f] hover:bg-gray-50 dark:hover:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group shadow-sm dark:shadow-none">
             <div className="flex items-center gap-4">
               <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
                 <span className="material-symbols-outlined">check</span>
               </div>
               <div>
-                <p className="text-white font-serif font-bold text-lg">{reading.book} {reading.chapter}</p>
+                <p className="text-gray-900 dark:text-white font-serif font-bold text-lg">{reading.book} {reading.chapter}</p>
                 <p className="text-gray-500 text-xs capitalize">{reading.displayDate}</p>
               </div>
             </div>
@@ -153,12 +153,12 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
       </div>
 
       {/* TIPS */}
-      <div className="bg-[#1a1b26] border border-orange-500/20 rounded-2xl p-6 md:p-8">
+      <div className="bg-white dark:bg-[#1a1b26] border border-orange-500/20 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-none">
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">💡</span>
-          <h3 className="font-serif text-xl font-bold text-white">Consejos para tu estudio</h3>
+          <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white">Consejos para tu estudio</h3>
         </div>
-        <ul className="space-y-3 text-gray-400">
+        <ul className="space-y-3 text-gray-600 dark:text-gray-400">
           <li className="flex items-center gap-2"><span className="text-accent-gold">•</span> Lee el capítulo en la mañana para empezar tu día con la Palabra.</li>
           <li className="flex items-center gap-2"><span className="text-accent-gold">•</span> Toma notas de los versículos que más te impacten.</li>
           <li className="flex items-center gap-2"><span className="text-accent-gold">•</span> Comparte con el grupo lo que aprendiste.</li>
@@ -189,6 +189,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
   const [quizCompletedToday, setQuizCompletedToday] = useState(false);
   const [todayQuizScore, setTodayQuizScore] = useState<number | null>(null);
   const [username, setUsername] = useState<string>('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isTodaysChapter, setIsTodaysChapter] = useState(true); // Track if this is today's chapter
 
   // Reading State
@@ -207,7 +208,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     } else {
       loadReading();
     }
-    fetchUsername();
+    fetchUserProfile();
   }, [location.state]);
 
   // Check quiz completion when chapter data changes
@@ -217,13 +218,13 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     }
   }, [chapterData]);
 
-  const fetchUsername = async () => {
+  const fetchUserProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('username')
+          .select('username, avatar_url')
           .eq('id', user.id)
           .single();
 
@@ -232,9 +233,12 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
         } else {
           setUsername(user.email?.split('@')[0] || 'Usuario');
         }
+        if (profile?.avatar_url) {
+          setAvatarUrl(profile.avatar_url);
+        }
       }
     } catch (error) {
-      console.error('Error fetching username:', error);
+      console.error('Error fetching user profile:', error);
       setUsername('Usuario');
     }
   };
@@ -387,7 +391,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     <div className="p-4 lg:p-10 animate-fade-in-up">
       {/* NAV BACK */}
       <div className="max-w-4xl mx-auto mb-6">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+        <button onClick={onBack} className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
           <span className="material-symbols-outlined">arrow_back</span>
           Volver al Hub
         </button>
@@ -396,14 +400,14 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
 
         {/* Reavivados Header Banner */}
-        <section className="glass-panel p-4 rounded-xl flex items-center justify-between bg-[#1a1b26] border border-white/5 shadow-md">
+        <section className="glass-panel p-4 rounded-xl flex items-center justify-between bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-md">
           <div className="flex items-center gap-3">
             <div className="bg-primary/20 p-2 rounded-lg text-primary">
               <span className="material-symbols-outlined">auto_stories</span>
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg">Reavivados Por Su Palabra</h2>
-              <p className="text-gray-400 text-sm">Lectura diaria para tu crecimiento espiritual</p>
+              <h2 className="text-gray-900 dark:text-white font-bold text-lg">Reavivados Por Su Palabra</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Lectura diaria para tu crecimiento espiritual</p>
             </div>
           </div>
 
@@ -416,61 +420,61 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
         {/* Reading Header & Context */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 className="text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
+            <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
               {chapterData?.book} {chapterData?.chapter}
             </h1>
-            <p className="text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
+            <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
           </div>
 
           {/* AI Context Card */}
           {contextData && (
             <div className="grid md:grid-cols-2 gap-4 animate-fade-in">
-              <div className="bg-[#1c1c26] border border-[#292938] p-4 rounded-lg relative overflow-hidden group">
+              <div className="bg-gray-100 dark:bg-[#1c1c26] border border-gray-200 dark:border-[#292938] p-4 rounded-lg relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
                   <span className="material-symbols-outlined text-4xl text-gray-500">history</span>
                 </div>
                 <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">En el capítulo anterior</h4>
-                <p className="text-sm text-gray-300 leading-relaxed italic">"{contextData.previous_summary}"</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">"{contextData.previous_summary}"</p>
               </div>
               <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
                   <span className="material-symbols-outlined text-4xl text-primary">light_mode</span>
                 </div>
                 <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Estudio de hoy</h4>
-                <p className="text-sm text-white leading-relaxed font-medium">"{contextData.current_preview}"</p>
+                <p className="text-sm text-gray-900 dark:text-white leading-relaxed font-medium">"{contextData.current_preview}"</p>
               </div>
             </div>
           )}
         </section>
 
         {/* Text Body */}
-        <section className="relative rounded-2xl overflow-hidden shadow-2xl bg-[#1a1b26] border border-white/5">
-          <div className="flex items-center justify-between px-6 py-3 bg-[#14151f] border-b border-white/5">
+        <section className="relative rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5">
+          <div className="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-[#14151f] border-b border-gray-200 dark:border-white/5">
             {/* Toolbar placeholders */}
           </div>
 
           <article className="p-8 md:p-12">
-            <div className="font-serif text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
+            <div className="font-serif text-gray-800 dark:text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
               {chapterData?.text}
             </div>
           </article>
         </section>
 
         {/* QUIZ SECTION */}
-        <section className="glass-panel rounded-2xl p-6 md:p-8 shadow-lg mb-20 scroll-mt-10" id="quiz-section">
+        <section className="glass-panel bg-white dark:bg-[#1e1e2d]/60 rounded-2xl p-6 md:p-8 shadow-lg mb-20 scroll-mt-10" id="quiz-section">
           {/* ... (Same quiz logic as before) ... */}
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-accent-gold/20 p-2 rounded-lg text-accent-gold">
               <span className="material-symbols-outlined">quiz</span>
             </div>
-            <h3 className="text-xl font-bold text-white">Prueba de Comprensión</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Prueba de Comprensión</h3>
           </div>
 
           {!showQuiz ? (
             !quizCompletedToday ? (
               <div className="text-center py-10">
-                <h4 className="text-white text-lg font-bold mb-2">¿Terminaste de leer?</h4>
-                <p className="text-gray-400 mb-6">Demuestra tu conocimiento respondiendo 3 preguntas simples generadas por IA.</p>
+                <h4 className="text-gray-900 dark:text-white text-lg font-bold mb-2">¿Terminaste de leer?</h4>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">Demuestra tu conocimiento respondiendo 3 preguntas simples generadas por IA.</p>
                 <button
                   onClick={startQuiz}
                   disabled={generatingQuiz}
@@ -491,10 +495,28 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
               </div>
             ) : (
               <div className="text-center py-10">
-                <div className="size-20 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-green-500/30">
-                  <span className="material-symbols-outlined text-4xl text-green-400">check_circle</span>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-primary/10 dark:to-blue-600/10 border border-blue-100 dark:border-primary/30 rounded-xl p-4 mb-6 max-w-md mx-auto shadow-sm dark:shadow-none">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="size-12 rounded-full bg-cover bg-center border-2 border-primary/20 bg-gray-200 overflow-hidden"
+                        style={{ backgroundImage: avatarUrl ? `url('${avatarUrl}')` : `url('https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=4b4ee7&color=fff')` }}
+                      ></div>
+                      <div className="text-left">
+                        <h3 className="text-gray-900 dark:text-white font-bold text-sm">@{username || 'Usuario'}</h3>
+                        <p className="text-primary dark:text-blue-200 text-xs font-medium">Reavivados por Su Palabra</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
+                        {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <h4 className="text-white text-2xl font-bold mb-2">¡Cuestionario Completado!</h4>
+                <div className="size-20 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-green-500/30">
+                  <span className="material-symbols-outlined text-4xl text-green-500 dark:text-green-400">check_circle</span>
+                </div>
+                <h4 className="text-gray-900 dark:text-white text-2xl font-bold mb-2">¡Cuestionario Completado!</h4>
                 <div className="flex items-center justify-center gap-2 text-gray-400 text-sm mb-4">
                   <span className="material-symbols-outlined text-sm">calendar_today</span>
                   <span>{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -502,16 +524,16 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
                 {todayQuizScore !== null ? (
                   <div className="mt-6 space-y-4">
-                    <div className="bg-[#1c1c26] border border-[#292938] rounded-xl p-6 max-w-md mx-auto">
+                    <div className="bg-gray-100 dark:bg-[#1c1c26] border border-gray-200 dark:border-[#292938] rounded-xl p-6 max-w-md mx-auto">
                       <div className="flex items-center justify-between mb-4">
-                        <span className="text-gray-400 text-sm">Tu puntuación</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">Tu puntuación</span>
                         <div className="flex items-center gap-2">
                           <span className="text-3xl font-bold text-primary">{todayQuizScore}</span>
                           <span className="text-gray-500">/3</span>
                         </div>
                       </div>
 
-                      <div className="w-full bg-[#292938] rounded-full h-3 overflow-hidden">
+                      <div className="w-full bg-gray-200 dark:bg-[#292938] rounded-full h-3 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${todayQuizScore === 3 ? 'bg-green-500' :
                             todayQuizScore === 2 ? 'bg-yellow-500' : 'bg-orange-500'
@@ -520,7 +542,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
                         ></div>
                       </div>
 
-                      <p className="text-gray-400 text-sm mt-4">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-4">
                         {todayQuizScore === 3 ? '¡Excelente! Dominas el contenido 🎉' :
                           todayQuizScore === 2 ? '¡Muy bien! Sigue así 👏' :
                             'Buen intento. Sigue leyendo 📖'}
@@ -554,46 +576,46 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
           ) : quizFinished ? (
             <div className="text-center py-10 animate-fade-in">
               {/* User Info Card */}
-              <div className="bg-gradient-to-r from-primary/10 to-blue-600/10 border border-primary/30 rounded-xl p-4 mb-6 max-w-md mx-auto">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-primary/10 dark:to-blue-600/10 border border-blue-100 dark:border-primary/30 rounded-xl p-4 mb-6 max-w-md mx-auto shadow-sm dark:shadow-none">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 bg-primary/20 rounded-full flex items-center justify-center">
-                      <span className="material-symbols-outlined text-primary">person</span>
-                    </div>
+                    <div className="size-12 rounded-full bg-cover bg-center border-2 border-primary/20 bg-gray-200 overflow-hidden"
+                      style={{ backgroundImage: avatarUrl ? `url('${avatarUrl}')` : `url('https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'User')}&background=4b4ee7&color=fff')` }}
+                    ></div>
                     <div className="text-left">
-                      <p className="text-white font-bold text-sm">@{username || 'Usuario'}</p>
-                      <p className="text-gray-400 text-xs">Reavivados por Su Palabra</p>
+                      <h3 className="text-gray-900 dark:text-white font-bold text-sm">@{username || 'Usuario'}</h3>
+                      <p className="text-primary dark:text-blue-200 text-xs font-medium">Reavivados por Su Palabra</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
                       {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="size-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-green-400">
+              <div className="size-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 dark:text-green-400">
                 <span className="material-symbols-outlined text-4xl">emoji_events</span>
               </div>
-              <h4 className="text-2xl font-bold text-white mb-2">¡Cuestionario Completado!</h4>
-              <p className="text-gray-400 mb-6 font-medium">
-                Acertaste <span className="text-white text-xl mx-1">{score}</span> de <span className="text-white text-xl mx-1">{questions.length}</span>
+              <h4 className="text-2xl font-black text-gray-900 dark:text-white mb-2">¡Cuestionario Completado!</h4>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 font-medium text-lg">
+                Acertaste <span className="text-gray-900 dark:text-white font-black text-xl mx-1">{score}</span> de <span className="text-gray-900 dark:text-white font-black text-xl mx-1">{questions.length}</span>
               </p>
 
               {score >= 2 ? (
-                <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg text-green-300 mb-4 inline-block">
+                <div className="p-4 bg-green-100 dark:bg-green-500/20 border border-green-200 dark:border-green-500/30 rounded-lg text-green-800 dark:text-green-300 mb-4 inline-block font-bold">
                   ¡Excelente trabajo! +50 XP han sido añadidos a tu perfil.
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 animate-shake">
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300">
+                  <div className="p-4 bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg text-red-800 dark:text-red-300">
                     <p className="font-bold mb-1">¡No te desanimes!</p>
                     <p className="text-sm opacity-90">Necesitas al menos 2 aciertos.</p>
                   </div>
                   <button
                     onClick={() => { setShowQuiz(false); }}
-                    className="text-white bg-white/10 hover:bg-white/20 px-6 py-2 rounded-lg transition-all flex items-center justify-center gap-2 mx-auto mt-2"
+                    className="text-gray-600 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 px-6 py-2 rounded-lg transition-all flex items-center justify-center gap-2 mx-auto mt-2 font-bold"
                   >
                     Intentar de nuevo
                   </button>
@@ -604,14 +626,14 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
             <div className="max-w-2xl mx-auto animate-fade-in">
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-xs font-bold text-gray-500">PREGUNTA {currentQuestion + 1}/{questions.length}</span>
-                <div className="flex-1 h-2 bg-[#292938] rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-gray-200 dark:bg-[#292938] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all duration-300"
                     style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
                   ></div>
                 </div>
               </div>
-              <h4 className="text-xl md:text-2xl font-bold text-white mb-8 leading-snug">
+              <h4 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-8 leading-snug">
                 {questions[currentQuestion].question}
               </h4>
               <div className="grid gap-3">
@@ -619,12 +641,12 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
                   <button
                     key={idx}
                     onClick={() => handleAnswer(idx)}
-                    className="group text-left p-4 rounded-xl border border-[#292938] bg-[#1c1c26] hover:bg-[#292938] hover:border-primary/50 transition-all active:scale-[0.99] flex items-center gap-4"
+                    className="group text-left p-4 rounded-xl border border-gray-200 dark:border-[#292938] bg-white dark:bg-[#1c1c26] hover:bg-gray-50 dark:hover:bg-[#292938] hover:border-primary/50 transition-all active:scale-[0.99] flex items-center gap-4"
                   >
-                    <div className="size-8 rounded-full bg-[#292938] group-hover:bg-primary group-hover:text-white text-gray-400 flex items-center justify-center font-bold text-sm transition-colors border border-white/5">
+                    <div className="size-8 rounded-full bg-gray-100 dark:bg-[#292938] group-hover:bg-primary group-hover:text-white text-gray-400 flex items-center justify-center font-bold text-sm transition-colors border border-gray-200 dark:border-white/5">
                       {String.fromCharCode(65 + idx)}
                     </div>
-                    <span className="text-gray-300 group-hover:text-white">{option}</span>
+                    <span className="text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{option}</span>
                   </button>
                 ))}
               </div>

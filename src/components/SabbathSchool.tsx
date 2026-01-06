@@ -110,7 +110,7 @@ const SabbathSchool: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="h-full flex items-center justify-center text-white">Cargando lección...</div>;
+        return <div className="h-full flex items-center justify-center text-gray-900 dark:text-white">Cargando lección...</div>;
     }
 
     if (!lesson) {
@@ -153,7 +153,7 @@ const SabbathSchool: React.FC = () => {
                 </div>
 
                 {/* Content Card */}
-                <div className="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col relative border border-white/5">
+                <div className="flex-1 glass-card bg-white dark:bg-white/[0.03] rounded-2xl overflow-hidden flex flex-col relative border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
 
                     {/* Scrollable Content */}
                     <div
@@ -163,23 +163,23 @@ const SabbathSchool: React.FC = () => {
                     >
                         {/* Verses */}
                         {lesson.readings && (
-                            <div className="bg-[#292938] p-4 rounded-xl border-l-4 border-primary">
-                                <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Lectura Bíblica</span>
-                                <p className="text-white font-medium whitespace-pre-wrap">{renderContentWithVerses(lesson.readings)}</p>
+                            <div className="bg-gray-100 dark:bg-[#292938] p-4 rounded-xl border-l-4 border-primary">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold block mb-1">Lectura Bíblica</span>
+                                <p className="text-gray-900 dark:text-white font-medium whitespace-pre-wrap">{renderContentWithVerses(lesson.readings)}</p>
                             </div>
                         )}
 
                         {/* Memory Text */}
                         {lesson.memory_text && (
                             <div className="bg-orange-500/10 p-4 rounded-xl border border-orange-500/20">
-                                <span className="text-xs text-orange-400 uppercase font-bold block mb-1">Para Memorizar</span>
-                                <p className="text-orange-200 italic font-medium">"{renderContentWithVerses(lesson.memory_text)}"</p>
+                                <span className="text-xs text-orange-600 dark:text-orange-400 uppercase font-bold block mb-1">Para Memorizar</span>
+                                <p className="text-orange-700 dark:text-orange-200 italic font-medium">"{renderContentWithVerses(lesson.memory_text)}"</p>
                             </div>
                         )}
 
                         {/* Main Content */}
                         <div className="prose prose-invert max-w-none">
-                            <p className="text-lg leading-relaxed text-gray-200 whitespace-pre-wrap font-serif">
+                            <p className="text-lg leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-serif">
                                 {renderContentWithVerses(lesson.content)}
                             </p>
                         </div>
@@ -257,12 +257,12 @@ const SabbathSchool: React.FC = () => {
             {/* Verse Modal */}
             {verseModal.show && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-[#1A1A24] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80%]">
-                        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#292938]">
-                            <h3 className="text-lg font-bold text-white">{verseModal.title}</h3>
+                    <div className="bg-white dark:bg-[#1A1A24] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[80%]">
+                        <div className="p-4 border-b border-gray-200 dark:border-white/5 flex justify-between items-center bg-gray-50 dark:bg-[#292938]">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{verseModal.title}</h3>
                             <button
                                 onClick={() => setVerseModal({ ...verseModal, show: false })}
-                                className="text-gray-400 hover:text-white transition-colors"
+                                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
                             >
                                 <span className="material-symbols-outlined">close</span>
                             </button>
@@ -274,7 +274,7 @@ const SabbathSchool: React.FC = () => {
                                     <p className="text-sm">Buscando versículo...</p>
                                 </div>
                             ) : (
-                                <p className="text-lg text-gray-200 leading-relaxed font-serif whitespace-pre-wrap">
+                                <p className="text-lg text-gray-700 dark:text-gray-200 leading-relaxed font-serif whitespace-pre-wrap">
                                     {verseModal.content}
                                 </p>
                             )}
