@@ -11,6 +11,54 @@ interface AIChatModalProps {
     onClose: () => void;
 }
 
+// Component to format AI messages with proper structure
+const FormattedMessage: React.FC<{ content: string }> = ({ content }) => {
+    // Split by double asterisks for titles/headers
+    const parts = content.split(/(\*\*[^*]+\*\*)/g);
+
+    return (
+        <div className="space-y-2">
+            {parts.map((part, idx) => {
+                // Bold text (titles)
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return (
+                        <div key={idx} className="font-bold text-white mt-3 first:mt-0">
+                            {part.replace(/\*\*/g, '')}
+                        </div>
+                    );
+                }
+
+                // Split by line breaks for paragraphs
+                const lines = part.split('\n').filter(line => line.trim());
+
+                return lines.map((line, lineIdx) => {
+                    // Detect lists (lines starting with **, +, -, or numbers)
+                    if (line.trim().match(/^(\*\*|\+|-|\d+\.)\s/)) {
+                        const cleanLine = line.trim().replace(/^(\*\*|\+|-|\d+\.)\s/, '');
+                        return (
+                            <div key={`${idx}-${lineIdx}`} className="flex gap-2 items-start ml-2">
+                                <span className="text-accent-gold mt-1">•</span>
+                                <span className="flex-1">{cleanLine}</span>
+                            </div>
+                        );
+                    }
+
+                    // Regular paragraph
+                    if (line.trim()) {
+                        return (
+                            <p key={`${idx}-${lineIdx}`} className="leading-relaxed">
+                                {line.trim()}
+                            </p>
+                        );
+                    }
+
+                    return null;
+                });
+            })}
+        </div>
+    );
+};
+
 const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => {
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: '¡Hola! Soy tu asistente espiritual. ¿En qué puedo ayudarte hoy?' }
@@ -92,11 +140,15 @@ const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => {
                         >
                             <div
                                 className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                        ? 'bg-primary text-white rounded-br-none'
-                                        : 'bg-[#292938] text-gray-200 rounded-bl-none'
+                                    ? 'bg-primary text-white rounded-br-none'
+                                    : 'bg-[#292938] text-gray-200 rounded-bl-none'
                                     }`}
                             >
-                                {msg.content}
+                                {msg.role === 'assistant' ? (
+                                    <FormattedMessage content={msg.content} />
+                                ) : (
+                                    msg.content
+                                )}
                             </div>
                         </div>
                     ))}

@@ -31,9 +31,32 @@ serve(async (req) => {
                 },
                 body: JSON.stringify({
                     model: "llama-3.3-70b-versatile",
-                    messages: messages,
+                    messages: [
+                        {
+                            role: "system",
+                            content: `Eres un asistente espiritual cristiano amable y sabio. 
+                            
+                            IMPORTANTE: Formatea tus respuestas de manera clara y estructurada:
+                            - Usa **Título** para encabezados importantes (con doble asterisco)
+                            - Separa ideas en párrafos distintos (usa saltos de línea)
+                            - Usa listas con + o - para enumerar puntos
+                            - Mantén las respuestas concisas pero completas
+                            - Usa un tono cálido y alentador
+                            
+                            Ejemplo de formato:
+                            **El Diluvio Universal**
+                            
+                            Según Génesis 6-9, el diluvio fue un evento de juicio y salvación.
+                            
+                            Animales que se salvaron:
+                            + Mamíferos (leones, osos, etc.)
+                            + Aves (palomas, águilas, etc.)
+                            + Reptiles (serpientes, tortugas, etc.)`
+                        },
+                        ...messages
+                    ],
                     temperature: 0.7,
-                    max_tokens: 300,
+                    max_tokens: 500,
                 }),
             });
             const data = await response.json();
