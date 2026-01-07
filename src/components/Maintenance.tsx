@@ -70,7 +70,7 @@ const Maintenance: React.FC = () => {
             {/* Footer info */}
             <div className="absolute bottom-6 text-gray-600 text-xs text-center w-full z-10">
                 <p>Código de estado: 503 Service Unavailable</p>
-                <p>© 2026 Youth Portal Team</p>
+                <p>© 2026 JAPP Team</p>
             </div>
         </div>
     );

@@ -110,7 +110,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
   };
 
   const copyProgressToClipboard = () => {
-    const progressText = `📚 Mi Progreso en Youth Portal 🙏
+    const progressText = `📚 Mi Progreso en JAPP 🙏
 
 👤 ${profile?.username || 'Usuario'}
 🏆 Nivel ${stats.level}
@@ -306,7 +306,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
                       style={{ backgroundImage: profile?.avatar_url ? `url('${profile.avatar_url}')` : `url('https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.username || 'User')}&background=4b4ee7&color=fff&size=200')` }}></div>
                   </div>
                   <h4 className="text-xl font-bold text-white mb-1">{profile?.username || 'Usuario'}</h4>
-                  <p className="text-sm text-gray-400">Youth Portal</p>
+                  <p className="text-sm text-gray-400">JAPP</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-center">

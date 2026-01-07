@@ -28,9 +28,9 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'Youth Portal',
-          short_name: 'YouthPortal',
-          description: 'Plataforma de Crecimiento Espiritual',
+          name: 'Jóvenes Adventistas',
+          short_name: 'JA',
+          description: 'Portal de Crecimiento Espiritual para Jóvenes Adventistas',
           theme_color: '#1a1b26',
           background_color: '#1a1b26',
           display: 'standalone',

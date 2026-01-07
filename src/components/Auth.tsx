@@ -82,8 +82,13 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background-dark text-white p-4">
             <div className="glass-panel p-8 rounded-2xl w-full max-w-md border border-white/10">
-                <h1 className="text-3xl font-display font-bold text-center mb-2">Youth Portal</h1>
-                <p className="text-center text-gray-400 mb-8">Tu espacio de crecimiento espiritual</p>
+                <div className="flex flex-col items-center mb-6">
+                    <div className="size-20 rounded-full overflow-hidden shadow-2xl shadow-primary/30 mb-4">
+                        <img src="/logo.png" alt="JA Logo" className="w-full h-full object-cover scale-110" />
+                    </div>
+                    <h1 className="text-3xl font-display font-bold text-center">Jóvenes Adventistas</h1>
+                    <p className="text-center text-gray-400 mt-2">Tu espacio de crecimiento espiritual</p>
+                </div>
 
                 <h2 className="text-2xl font-bold text-center mb-6">
                     {isResettingPassword ? 'Recuperar Contraseña' : (isSignUp ? 'Crear Cuenta' : 'Iniciar Sesión')}

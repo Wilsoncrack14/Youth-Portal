@@ -65,10 +65,13 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
       <aside className={`fixed lg:relative inset-y-0 left-0 z-50 w-72 flex flex-col justify-between bg-white dark:bg-[#0e0e15] border-r border-gray-200 dark:border-[#292938] p-6 shrink-0 h-full overflow-y-auto transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex flex-col gap-8">
           <div className="flex items-center gap-3 px-2 cursor-pointer" onClick={() => handleNavigation('/')}>
-            <div className="size-10 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20">
-              <span className="material-symbols-outlined text-2xl">church</span>
+            <div className="size-12 rounded-full overflow-hidden shadow-lg shadow-primary/20 flex items-center justify-center">
+              <img src="/logo.png" alt="JA Logo" className="w-full h-full object-cover scale-110" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Youth Portal</h2>
+            <div className="flex flex-col">
+              <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Jóvenes</h2>
+              <p className="text-xs font-semibold text-primary dark:text-accent-gold">Adventistas</p>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-[#1a1b26] p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none" onClick={() => handleNavigation('/profile')}>
@@ -129,7 +132,10 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
         <header className="h-20 flex items-center justify-between px-8 border-b border-[#292938] bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-20">
           <div className="lg:hidden flex items-center gap-3 text-gray-900 dark:text-white">
             <span className="material-symbols-outlined cursor-pointer" onClick={() => setIsMobileMenuOpen(true)}>menu</span>
-            <span className="font-bold text-lg">Youth Portal</span>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="JA Logo" className="w-8 h-8 object-contain" />
+              <span className="font-bold text-lg">JA</span>
+            </div>
           </div>
 
           <div className="hidden lg:flex w-full max-w-md">
