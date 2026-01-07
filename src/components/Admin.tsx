@@ -1,4 +1,3 @@
-```typescript
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -37,7 +36,7 @@ const Admin: React.FC = () => {
         setStatus('Iniciando subida...');
 
         try {
-            const fileName = `uploads / ${ Date.now() }_${ file.name.replace(/\s+/g, '_') } `;
+            const fileName = `uploads/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
             const { data, error } = await supabase.storage
                 .from('lessons')
                 .upload(fileName, file);
@@ -46,7 +45,7 @@ const Admin: React.FC = () => {
                 throw error;
             }
 
-            setStatus(`✅ Archivo subido con éxito: ${ fileName } `);
+            setStatus(`✅ Archivo subido con éxito: ${fileName}`);
 
             setStatus('🧠 Procesando con IA (Gemini)...');
             const { data: funcData, error: funcError } = await supabase.functions.invoke('process-pdf-lesson', {
@@ -55,14 +54,14 @@ const Admin: React.FC = () => {
 
             if (funcError) throw funcError;
 
-            setStatus(`🎉 ¡Lección procesada y guardada!(${ funcData.processed } días extraídos)`);
+            setStatus(`🎉 ¡Lección procesada y guardada! (${funcData.processed} días extraídos)`);
             console.log('AI Processing result:', funcData);
             setUploading(false); // Stop extracting
 
 
         } catch (error: any) {
             console.error('Error uploading:', error);
-            setStatus(`❌ Error al subir: ${ error.message } `);
+            setStatus(`❌ Error al subir: ${error.message}`);
         } finally {
             setUploading(false);
         }
@@ -88,7 +87,7 @@ const Admin: React.FC = () => {
                             <h2 className="text-xl font-bold">Subir Lección (PDF)</h2>
                         </div>
 
-                        <div className={`border - 2 border - dashed border - white / 10 rounded - xl p - 8 flex flex - col items - center justify - center text - center transition - colors relative ${ uploading ? 'bg-white/5 animate-pulse' : 'hover:bg-white/5 cursor-pointer' } `}>
+                        <div className={`border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors relative ${uploading ? 'bg-white/5 animate-pulse' : 'hover:bg-white/5 cursor-pointer'}`}>
                             <input
                                 type="file"
                                 accept="application/pdf"
@@ -102,7 +101,7 @@ const Admin: React.FC = () => {
                         </div>
 
                         {status && (
-                            <div className={`mt - 4 p - 3 rounded - lg text - sm flex items - center gap - 2 ${ status.startsWith('✅') ? 'bg-green-500/10 text-green-300' : status.startsWith('❌') ? 'bg-red-500/10 text-red-300' : 'bg-blue-500/10 text-blue-300' } `}>
+                            <div className={`mt-4 p-3 rounded-lg text-sm flex items-center gap-2 ${status.startsWith('✅') ? 'bg-green-500/10 text-green-300' : status.startsWith('❌') ? 'bg-red-500/10 text-red-300' : 'bg-blue-500/10 text-blue-300'}`}>
                                 {status.startsWith('Iniciando') && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
                                 {status}
                             </div>
