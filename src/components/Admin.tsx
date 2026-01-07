@@ -1,45 +1,30 @@
+```typescript
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '../contexts/UserContext';
+import { useAdmin } from '../hooks/useAdmin';
 
 const Admin: React.FC = () => {
-    const { profile, loading: userLoading } = useUser();
+    const { isAdmin, loading: checkingAdmin } = useAdmin();
     const navigate = useNavigate();
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [checkingAdmin, setCheckingAdmin] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [status, setStatus] = useState<string>('');
 
     useEffect(() => {
-        const checkAdmin = async () => {
-            if (!profile?.id) return;
-
-            const { data } = await supabase
-                .from('admins')
-                .select('user_id')
-                .eq('user_id', profile.id)
-                .single();
-
-            if (data) {
-                setIsAdmin(true);
-            } else {
-                navigate('/dashboard'); // Redirect non-admins
-            }
-            setCheckingAdmin(false);
-        };
-
-        if (!userLoading) {
-            if (!profile) {
-                navigate('/');
-            } else {
-                checkAdmin();
-            }
+        if (!checkingAdmin && !isAdmin) {
+            navigate('/'); // Redirect non-admins
         }
-    }, [profile, userLoading, navigate]);
+    }, [isAdmin, checkingAdmin, navigate]);
 
-    if (userLoading || checkingAdmin) {
-        return <div className="h-full flex items-center justify-center text-white">Verificando permisos...</div>;
+    if (checkingAdmin) {
+        return (
+            <div className="h-full flex items-center justify-center text-white">
+                <div className="text-center">
+                    <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-400">Verificando permisos...</p>
+                </div>
+            </div>
+        );
     }
 
     if (!isAdmin) return null;
@@ -52,7 +37,7 @@ const Admin: React.FC = () => {
         setStatus('Iniciando subida...');
 
         try {
-            const fileName = `uploads/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+            const fileName = `uploads / ${ Date.now() }_${ file.name.replace(/\s+/g, '_') } `;
             const { data, error } = await supabase.storage
                 .from('lessons')
                 .upload(fileName, file);
@@ -61,7 +46,7 @@ const Admin: React.FC = () => {
                 throw error;
             }
 
-            setStatus(`✅ Archivo subido con éxito: ${fileName}`);
+            setStatus(`✅ Archivo subido con éxito: ${ fileName } `);
 
             setStatus('🧠 Procesando con IA (Gemini)...');
             const { data: funcData, error: funcError } = await supabase.functions.invoke('process-pdf-lesson', {
@@ -70,14 +55,14 @@ const Admin: React.FC = () => {
 
             if (funcError) throw funcError;
 
-            setStatus(`🎉 ¡Lección procesada y guardada! (${funcData.processed} días extraídos)`);
+            setStatus(`🎉 ¡Lección procesada y guardada!(${ funcData.processed } días extraídos)`);
             console.log('AI Processing result:', funcData);
             setUploading(false); // Stop extracting
 
 
         } catch (error: any) {
             console.error('Error uploading:', error);
-            setStatus(`❌ Error al subir: ${error.message}`);
+            setStatus(`❌ Error al subir: ${ error.message } `);
         } finally {
             setUploading(false);
         }
@@ -103,7 +88,7 @@ const Admin: React.FC = () => {
                             <h2 className="text-xl font-bold">Subir Lección (PDF)</h2>
                         </div>
 
-                        <div className={`border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors relative ${uploading ? 'bg-white/5 animate-pulse' : 'hover:bg-white/5 cursor-pointer'}`}>
+                        <div className={`border - 2 border - dashed border - white / 10 rounded - xl p - 8 flex flex - col items - center justify - center text - center transition - colors relative ${ uploading ? 'bg-white/5 animate-pulse' : 'hover:bg-white/5 cursor-pointer' } `}>
                             <input
                                 type="file"
                                 accept="application/pdf"
@@ -117,7 +102,7 @@ const Admin: React.FC = () => {
                         </div>
 
                         {status && (
-                            <div className={`mt-4 p-3 rounded-lg text-sm flex items-center gap-2 ${status.startsWith('✅') ? 'bg-green-500/10 text-green-300' : status.startsWith('❌') ? 'bg-red-500/10 text-red-300' : 'bg-blue-500/10 text-blue-300'}`}>
+                            <div className={`mt - 4 p - 3 rounded - lg text - sm flex items - center gap - 2 ${ status.startsWith('✅') ? 'bg-green-500/10 text-green-300' : status.startsWith('❌') ? 'bg-red-500/10 text-red-300' : 'bg-blue-500/10 text-blue-300' } `}>
                                 {status.startsWith('Iniciando') && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
                                 {status}
                             </div>
