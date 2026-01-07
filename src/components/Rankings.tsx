@@ -1,14 +1,56 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RankingEntry } from '../types';
+import { supabase } from '../services/supabase';
 
-interface RankingsProps {
-  rankings: RankingEntry[];
-}
+const Rankings: React.FC = () => {
+  const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const Rankings: React.FC<RankingsProps> = ({ rankings }) => {
+  useEffect(() => {
+    fetchRankings();
+  }, []);
+
+  const fetchRankings = async () => {
+    try {
+      setLoading(true);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, xp')
+        .order('xp', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      if (profiles) {
+        const rankingData: RankingEntry[] = profiles.map((p, index) => ({
+          rank: index + 1,
+          name: p.username || 'Usuario',
+          xp: p.xp || 0,
+          avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=random`,
+          title: 'Discípulo',
+          isMe: currentUser?.id === p.id
+        }));
+        setRankings(rankingData);
+      }
+    } catch (error) {
+      console.error('Error fetching rankings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const top3 = rankings.slice(0, 3);
   const others = rankings.slice(3);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
@@ -19,69 +61,71 @@ const Rankings: React.FC<RankingsProps> = ({ rankings }) => {
         </div>
 
         {/* Podium */}
-        <div className="flex justify-center items-end gap-4 sm:gap-12 mt-12 mb-12">
-          {/* Rank 2 */}
-          <div className="flex flex-col items-center gap-3 w-1/3 max-w-[160px] order-1">
-            <div className="relative">
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-gray-400 font-black text-xl flex flex-col items-center">
-                <span className="material-symbols-outlined">keyboard_arrow_up</span>
-                2
+        {rankings.length >= 3 && (
+          <div className="flex justify-center items-end gap-4 sm:gap-12 mt-12 mb-12">
+            {/* Rank 2 */}
+            <div className="flex flex-col items-center gap-3 w-1/3 max-w-[160px] order-1">
+              <div className="relative">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-gray-400 font-black text-xl flex flex-col items-center">
+                  <span className="material-symbols-outlined">keyboard_arrow_up</span>
+                  2
+                </div>
+                <div className="size-20 sm:size-24 rounded-full p-1 bg-gradient-to-b from-gray-300 to-gray-600">
+                  <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[1]?.avatar})` }}></div>
+                </div>
               </div>
-              <div className="size-20 sm:size-24 rounded-full p-1 bg-gradient-to-b from-gray-300 to-gray-600">
-                <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[1]?.avatar})` }}></div>
+              <div className="text-center mt-2">
+                <p className="text-white font-bold text-lg truncate w-full">{top3[1]?.name}</p>
+                <div className="flex items-center justify-center gap-1 text-amber-400 font-bold">
+                  <span className="material-symbols-outlined text-[18px] fill-current">workspace_premium</span>
+                  <span>{top3[1]?.xp}</span>
+                </div>
               </div>
             </div>
-            <div className="text-center mt-2">
-              <p className="text-white font-bold text-lg truncate w-full">{top3[1]?.name}</p>
-              <div className="flex items-center justify-center gap-1 text-amber-400 font-bold">
-                <span className="material-symbols-outlined text-[18px] fill-current">workspace_premium</span>
-                <span>{top3[1]?.xp}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Rank 1 */}
-          <div className="flex flex-col items-center gap-3 w-1/3 max-w-[180px] order-2 -mt-16 z-10">
-            <div className="relative">
-              <div className="absolute -top-14 left-1/2 -translate-x-1/2 text-accent-gold animate-bounce">
-                <span className="material-symbols-outlined text-5xl">crown</span>
+            {/* Rank 1 */}
+            <div className="flex flex-col items-center gap-3 w-1/3 max-w-[180px] order-2 -mt-16 z-10">
+              <div className="relative">
+                <div className="absolute -top-14 left-1/2 -translate-x-1/2 text-accent-gold animate-bounce">
+                  <span className="material-symbols-outlined text-5xl">crown</span>
+                </div>
+                <div className="size-28 sm:size-32 rounded-full p-1 bg-gradient-to-b from-yellow-300 to-yellow-600 shadow-xl shadow-yellow-500/20">
+                  <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[0]?.avatar})` }}></div>
+                </div>
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-sm font-black px-4 py-1 rounded-full border border-yellow-400">
+                  #1
+                </div>
               </div>
-              <div className="size-28 sm:size-32 rounded-full p-1 bg-gradient-to-b from-yellow-300 to-yellow-600 shadow-xl shadow-yellow-500/20">
-                <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[0]?.avatar})` }}></div>
-              </div>
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white text-sm font-black px-4 py-1 rounded-full border border-yellow-400">
-                #1
+              <div className="text-center mt-4">
+                <p className="text-white font-bold text-2xl truncate w-full">{top3[0]?.name}</p>
+                <div className="flex items-center justify-center gap-1 text-amber-300 font-bold text-lg">
+                  <span className="material-symbols-outlined fill-current">workspace_premium</span>
+                  <span>{top3[0]?.xp}</span>
+                </div>
               </div>
             </div>
-            <div className="text-center mt-4">
-              <p className="text-white font-bold text-2xl truncate w-full">{top3[0]?.name}</p>
-              <div className="flex items-center justify-center gap-1 text-amber-300 font-bold text-lg">
-                <span className="material-symbols-outlined fill-current">workspace_premium</span>
-                <span>{top3[0]?.xp}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Rank 3 */}
-          <div className="flex flex-col items-center gap-3 w-1/3 max-w-[160px] order-3">
-            <div className="relative">
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-orange-600 font-black text-xl flex flex-col items-center">
-                <span className="material-symbols-outlined">keyboard_arrow_down</span>
-                3
+            {/* Rank 3 */}
+            <div className="flex flex-col items-center gap-3 w-1/3 max-w-[160px] order-3">
+              <div className="relative">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-orange-600 font-black text-xl flex flex-col items-center">
+                  <span className="material-symbols-outlined">keyboard_arrow_down</span>
+                  3
+                </div>
+                <div className="size-20 sm:size-24 rounded-full p-1 bg-gradient-to-b from-orange-300 to-orange-700">
+                  <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[2]?.avatar})` }}></div>
+                </div>
               </div>
-              <div className="size-20 sm:size-24 rounded-full p-1 bg-gradient-to-b from-orange-300 to-orange-700">
-                <div className="w-full h-full rounded-full bg-cover bg-center border-4 border-[#111221]" style={{ backgroundImage: `url(${top3[2]?.avatar})` }}></div>
-              </div>
-            </div>
-            <div className="text-center mt-2">
-              <p className="text-white font-bold text-lg truncate w-full">{top3[2]?.name}</p>
-              <div className="flex items-center justify-center gap-1 text-amber-400 font-bold">
-                <span className="material-symbols-outlined text-[18px] fill-current">workspace_premium</span>
-                <span>{top3[2]?.xp}</span>
+              <div className="text-center mt-2">
+                <p className="text-white font-bold text-lg truncate w-full">{top3[2]?.name}</p>
+                <div className="flex items-center justify-center gap-1 text-amber-400 font-bold">
+                  <span className="material-symbols-outlined text-[18px] fill-current">workspace_premium</span>
+                  <span>{top3[2]?.xp}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* List */}
         <div className="flex flex-col gap-3 pb-20">
@@ -106,6 +150,13 @@ const Rankings: React.FC<RankingsProps> = ({ rankings }) => {
               </div>
             </div>
           ))}
+
+          {rankings.length === 0 && (
+            <div className="text-center py-20 text-gray-500">
+              <span className="material-symbols-outlined text-4xl mb-2">leaderboard</span>
+              <p>No hay datos de clasificación aún.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

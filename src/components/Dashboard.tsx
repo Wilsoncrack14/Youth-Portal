@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { supabase } from '../services/supabase';
 import { UserStats, RankingEntry } from '../types';
 import { getCurrentQuarterlyInfo, QuarterlyInfo } from '../services/quarterly';
 import { useNavigate } from 'react-router-dom';
@@ -11,16 +12,18 @@ interface DashboardProps {
   rankings: RankingEntry[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
   const navigate = useNavigate();
   const { profile } = useUser();
   const [dailyReading, setDailyReading] = React.useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
   const [quarterly, setQuarterly] = React.useState<QuarterlyInfo | null>(null);
   const [timeRemaining, setTimeRemaining] = React.useState<string>("");
+  const [leaderboard, setLeaderboard] = React.useState<RankingEntry[]>([]);
 
   React.useEffect(() => {
     // Load Quarterly Info
     getCurrentQuarterlyInfo().then(setQuarterly);
+    fetchLeaderboard();
 
     let interval: NodeJS.Timeout;
     import('../services/biblePlan').then(async (module) => {
@@ -55,6 +58,30 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const fetchLeaderboard = async () => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, xp')
+        .order('xp', { ascending: false })
+        .limit(3);
+
+      if (!error && profiles) {
+        setLeaderboard(profiles.map((p, i) => ({
+          rank: i + 1,
+          name: p.username || 'Usuario',
+          xp: p.xp || 0,
+          avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=random`,
+          title: '',
+          isMe: currentUser?.id === p.id
+        })));
+      }
+    } catch (e) {
+      console.error("Error fetching leaderboard preview", e);
+    }
+  };
 
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
@@ -245,8 +272,8 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
               <button onClick={() => navigate('/rankings')} className="text-xs text-primary font-bold uppercase hover:underline">Ver Todos</button>
             </div>
             <div className="flex flex-col gap-3">
-              {rankings.slice(0, 3).map((r) => (
-                <div key={r.rank} className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${r.isMe ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-100 dark:hover:bg-[#292938]'}`}>
+              {leaderboard.map((r) => (
+                <div key={r.rank} className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${r.isMe ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-100 dark:hover:bg-[#292938]'}`} onClick={() => navigate('/rankings')}>
                   <span className={`font-bold w-4 text-center ${r.rank === 1 ? 'text-accent-gold' : 'text-gray-400'}`}>{r.rank}</span>
                   <div className="size-8 rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${r.avatar})` }}></div>
                   <div className="flex-1 min-w-0">
@@ -255,6 +282,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, rankings }) => {
                   <span className="text-xs font-bold text-primary">{r.xp} XP</span>
                 </div>
               ))}
+              {leaderboard.length === 0 && (
+                <p className="text-xs text-gray-500 text-center py-4">Cargando...</p>
+              )}
             </div>
           </div>
         </div>

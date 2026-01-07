@@ -27,7 +27,7 @@ import { useUserData } from './hooks/useUserData';
 const App: React.FC = () => {
   const [session, setSession] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [rankings, setRankings] = useState<RankingEntry[]>([]);
+
 
   // Auth listener
   useEffect(() => {
@@ -117,9 +117,9 @@ const App: React.FC = () => {
                 ) : (
                   <Layout userStats={userStats}>
                     <Routes>
-                      <Route path="/" element={<Dashboard stats={userStats} rankings={rankings} />} />
+                      <Route path="/" element={<Dashboard stats={userStats} />} />
                       <Route path="/studies" element={<Studies />} />
-                      <Route path="/rankings" element={<Rankings rankings={rankings} />} />
+                      <Route path="/rankings" element={<Rankings />} />
                       <Route path="/community" element={<Community />} />
                       <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
                       <Route path="/bible" element={<BibleLibrary />} />

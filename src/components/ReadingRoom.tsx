@@ -27,10 +27,67 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
 
 const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
   const [dailyReading, setDailyReading] = useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
+  const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>(new Array(7).fill(false));
+  const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     fetchDailyChapter().then(setDailyReading);
+    fetchWeeklyProgress();
   }, []);
+
+  const fetchWeeklyProgress = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
+      const diffToSunday = dayOfWeek;
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - diffToSunday);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const { data: readings, error } = await supabase
+        .from('daily_readings')
+        .select('created_at, reflection')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfWeek.toISOString());
+
+      if (error) throw error;
+
+      const progress = new Array(7).fill(false);
+      let count = 0;
+
+      if (readings) {
+        readings.forEach((reading) => {
+          const readingDate = new Date(reading.created_at);
+          // Adjust for timezone offset if necessary, but typically standard JS dates work if just checking day index
+          // However, better to rely on matching the day index relative to the week
+          const dayIndex = readingDate.getDay();
+
+          let isPassed = false;
+          if (reading.reflection && typeof reading.reflection === 'string') {
+            const scoreMatch = reading.reflection.match(/score:\s*(\d+)/);
+            if (scoreMatch) {
+              const score = parseInt(scoreMatch[1]);
+              if (score >= 2) isPassed = true;
+            }
+          }
+
+          if (isPassed && dayIndex >= 0 && dayIndex <= 6) {
+            progress[dayIndex] = true;
+          }
+        });
+      }
+
+      setWeeklyProgress(progress);
+      setCompletedCount(progress.filter(Boolean).length);
+
+    } catch (err) {
+      console.error("Error fetching weekly progress:", err);
+    }
+  };
+
 
   const days = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
   const currentDayIndex = new Date().getDay();
@@ -81,17 +138,37 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
         <h3 className="font-serif text-2xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
         <div className="flex justify-between items-center max-w-3xl mx-auto">
           {days.map((d, i) => {
-            const status = i < currentDayIndex ? 'completed' : i === currentDayIndex ? 'active' : 'upcoming';
+            // Logic:
+            // If we have a record for this day (weeklyProgress[i] is true) -> COMPLETED
+            // If not completed AND it is today -> ACTIVE
+            // If not completed AND it is past -> MISSED (Gray outline or Red dot?) -> Let's keep it simple: just empty
+            // If future -> UPCOMING
+
+            const isDone = weeklyProgress[i];
+            const isToday = i === currentDayIndex;
+            const isPast = i < currentDayIndex;
+
+            let status = 'upcoming';
+            if (isDone) {
+              status = 'completed';
+            } else if (isToday) {
+              status = 'active';
+            } else if (isPast) {
+              status = 'missed'; // New status for clarity
+            }
+
             return (
               <div key={i} className="flex flex-col items-center gap-3">
                 <span className="text-xs font-bold text-gray-500">{d}</span>
                 <div className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all
                         ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black' :
                     status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' :
-                      'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
+                      status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-300' :
+                        'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
                      `}>
                   {status === 'completed' && <span className="material-symbols-outlined">check</span>}
                   {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
+                  {status === 'missed' && <span className="size-2 bg-red-400 rounded-full"></span>}
                   {status === 'upcoming' && <span className="size-2 bg-gray-600 rounded-full"></span>}
                 </div>
               </div>
