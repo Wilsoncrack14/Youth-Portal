@@ -12,6 +12,8 @@ export interface UserProfile {
     xp: number;
     level: number;
     badges_count: number;
+    birth_date?: string;
+    church?: string;
 }
 
 

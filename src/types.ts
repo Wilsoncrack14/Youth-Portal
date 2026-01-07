@@ -38,3 +38,29 @@ export interface Study {
   completedLessons: number;
   image: string;
 }
+
+export interface Prayer {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles?: UserProfile;
+  prayer_amens?: { count: number }[];
+  amens_count?: number;
+  user_has_amened?: boolean;
+  prayer_comments?: PrayerComment[];
+}
+
+export interface PrayerComment {
+  id: string;
+  prayer_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles?: UserProfile;
+}
+
+// Add UserProfile here if not already imported or defined, but reuse logic if needed.
+// Since UserProfile is in useUserData, let's export it from there or redefine minimally here if causing circular deps.
+// For now, assuming UserProfile is available via import or we use 'any' temporarily if types are strict
+import { UserProfile } from './hooks/useUserData';

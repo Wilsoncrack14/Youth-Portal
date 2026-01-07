@@ -12,6 +12,7 @@ import Community from './components/Community';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
 import UpdatePassword from './components/UpdatePassword';
+import Onboarding from './components/Onboarding';
 import { UserStats, RankingEntry, Badge } from './types';
 import { supabase } from './services/supabase.ts';
 import SabbathSchool from './components/SabbathSchool';
@@ -45,7 +46,7 @@ const App: React.FC = () => {
   }, []);
 
   /* New Hook Implementation */
-  const { userStats, badges, isLoading: userDataLoading, invalidateData } = useUserData(session?.id);
+  const { userStats, badges, profile, isLoading: userDataLoading, invalidateData } = useUserData(session?.id);
   const loading = authLoading || (!!session && userDataLoading);
 
   const handleStudyComplete = async (xp: number, data?: { type?: 'quiz'; score?: number; reflection?: string; verse?: string; reference?: string }) => {
@@ -115,22 +116,33 @@ const App: React.FC = () => {
                 !session ? (
                   <Auth onLoginSuccess={() => { }} />
                 ) : (
-                  <Layout userStats={userStats}>
-                    <Routes>
-                      <Route path="/" element={<Dashboard stats={userStats} />} />
-                      <Route path="/studies" element={<Studies />} />
-                      <Route path="/rankings" element={<Rankings />} />
-                      <Route path="/community" element={<Community />} />
-                      <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
-                      <Route path="/bible" element={<BibleLibrary />} />
-                      <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/sabbath-school" element={<SabbathSchool />} />
-                      <Route path="/admin" element={<Admin />} />
-                      <Route path="/maintenance" element={<Maintenance />} />
-                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
-                  </Layout>
+                  <Routes>
+                    <Route path="/onboarding" element={
+                      (profile?.birth_date && profile?.church) ? <Navigate to="/" replace /> : <Onboarding />
+                    } />
+                    <Route path="*" element={
+                      (!profile?.birth_date || !profile?.church) ? (
+                        <Navigate to="/onboarding" replace />
+                      ) : (
+                        <Layout userStats={userStats}>
+                          <Routes>
+                            <Route path="/" element={<Dashboard stats={userStats} />} />
+                            <Route path="/studies" element={<Studies />} />
+                            <Route path="/rankings" element={<Rankings />} />
+                            <Route path="/community" element={<Community />} />
+                            <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
+                            <Route path="/bible" element={<BibleLibrary />} />
+                            <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/sabbath-school" element={<SabbathSchool />} />
+                            <Route path="/admin" element={<Admin />} />
+                            <Route path="/maintenance" element={<Maintenance />} />
+                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                          </Routes>
+                        </Layout>
+                      )
+                    } />
+                  </Routes>
                 )
               } />
             </Routes>
