@@ -71,14 +71,16 @@ serve(async (req) => {
                  - Evaluar comprensión de eventos, personajes y enseñanzas clave
                  - Tener opciones plausibles pero con una respuesta claramente correcta
                  
-                 Responde SOLAMENTE con un JSON válido que sea un ARRAY de objetos:
-                 [
-                    {
-                        "question": "¿Pregunta sobre el contenido?",
-                        "options": ["Opción A", "Opción B", "Opción C"],
-                        "correctAnswer": 0
-                    }
-                 ]
+                 Responde SOLAMENTE con este formato JSON (objeto con array dentro):
+                 {
+                    "questions": [
+                        {
+                            "question": "¿Pregunta sobre el contenido?",
+                            "options": ["Opción A", "Opción B", "Opción C"],
+                            "correctAnswer": 0
+                        }
+                    ]
+                 }
                  Asegúrate de que el JSON sea válido y no tenga texto adicional ni markdown (como \`\`\`json).`;
                 break;
 
@@ -137,11 +139,13 @@ serve(async (req) => {
             // Clean up potential markdown
             let cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
             result = JSON.parse(cleanText);
+            console.log("[Groq] Parsed result:", result);
         } catch (e) {
             console.error("JSON Parse Error:", e, "Input was:", rawText);
             result = { error: "Error parsing AI response" };
         }
 
+        // All responses follow consistent object pattern
         return new Response(JSON.stringify(result), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

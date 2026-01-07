@@ -8,6 +8,8 @@ interface QuizQuestion {
 
 export async function generateQuizQuestion(lessonContent: string): Promise<QuizQuestion[]> {
     try {
+        console.log('🤖 Generating quiz for content length:', lessonContent.length);
+
         const { data, error } = await supabase.functions.invoke('mistral-chat', {
             body: {
                 action: 'generate_quiz',
@@ -15,19 +17,28 @@ export async function generateQuizQuestion(lessonContent: string): Promise<QuizQ
             }
         });
 
-        if (error) throw error;
+        console.log('📥 Quiz generation response:', { data, error });
 
-        // Gemini API now returns the JSON object directly
-        if (data && Array.isArray(data)) {
-            return data as QuizQuestion[];
+        if (error) {
+            console.error('❌ Supabase function error:', error);
+            throw error;
+        }
+
+        // Backend now returns: { questions: [...] }
+        if (data && data.questions && Array.isArray(data.questions)) {
+            console.log('✅ Valid quiz received:', data.questions);
+            return data.questions as QuizQuestion[];
         } else if (data && data.error) {
+            console.error('❌ AI returned error:', data.error);
             throw new Error(data.error);
         } else {
+            console.error('❌ Invalid quiz structure:', data);
             throw new Error('Invalid quiz structure received from AI');
         }
 
     } catch (error) {
-        console.error('Error generating quiz:', error);
+        console.error('❌ Error generating quiz:', error);
+        console.log('⚠️ Using fallback questions');
         // Fallback questions
         return [
             {
