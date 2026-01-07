@@ -63,12 +63,18 @@ serve(async (req) => {
                 break;
 
             case 'generate_quiz':
-                systemContent = "Eres un experto en educación bíblica. Tu tarea es generar preguntas de opción múltiple en formato JSON estricto.";
-                userContent = `Basado en el siguiente texto: "${payload.substring(0, 3000)}...", genera 3 preguntas de comprensión de opción múltiple.
+                systemContent = "Eres un experto en educación bíblica. Tu tarea es generar preguntas de opción múltiple en formato JSON estricto basadas en el contenido completo del texto proporcionado.";
+                userContent = `Basado en el siguiente texto bíblico: "${payload.substring(0, 8000)}...", genera 3 preguntas de comprensión de opción múltiple que evalúen la comprensión del contenido COMPLETO del capítulo.
+                 
+                 Las preguntas deben:
+                 - Cubrir diferentes partes del capítulo (inicio, medio, final)
+                 - Evaluar comprensión de eventos, personajes y enseñanzas clave
+                 - Tener opciones plausibles pero con una respuesta claramente correcta
+                 
                  Responde SOLAMENTE con un JSON válido que sea un ARRAY de objetos:
                  [
                     {
-                        "question": "¿Pregunta?",
+                        "question": "¿Pregunta sobre el contenido?",
                         "options": ["Opción A", "Opción B", "Opción C"],
                         "correctAnswer": 0
                     }
