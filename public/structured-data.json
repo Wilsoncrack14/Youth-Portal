@@ -1,0 +1,28 @@
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Jóvenes Adventistas",
+    "alternateName": "JA Portal",
+    "url": "https://youth-portal.com",
+    "description": "Portal de crecimiento espiritual para jóvenes adventistas. Estudia la Biblia, participa en Reavivados por su Palabra y conecta con tu comunidad.",
+    "applicationCategory": "LifestyleApplication",
+    "operatingSystem": "Web, iOS, Android",
+    "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "Jóvenes Adventistas",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://youth-portal.com/logo.png"
+        }
+    },
+    "inLanguage": "es-ES",
+    "audience": {
+        "@type": "Audience",
+        "audienceType": "Jóvenes Adventistas"
+    }
+}

@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://youth-portal.com/sitemap.xml
+
+# Disallow admin and API routes
+Disallow: /admin
+Disallow: /api/
+
+# Allow important public pages
+Allow: /community
+Allow: /bible-library
+Allow: /sabbath-school
+Allow: /reading-room
