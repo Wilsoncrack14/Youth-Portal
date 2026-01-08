@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
+import DashboardRouter from './components/DashboardRouter';
+import AdminDashboard from './components/AdminDashboard';
 import Rankings from './components/Rankings';
 import ReadingRoom from './components/ReadingRoom';
 import BibleLibrary from './components/BibleLibrary';
@@ -16,12 +17,14 @@ import Onboarding from './components/Onboarding';
 import { UserStats, RankingEntry, Badge } from './types';
 import { supabase } from './services/supabase.ts';
 import SabbathSchool from './components/SabbathSchool';
+import SabbathSchoolAdmin from './components/SabbathSchoolAdmin';
 import Admin from './components/Admin';
 import { getCurrentUser } from './services/auth';
 import { User } from '@supabase/supabase-js';
 import { UserProvider } from './contexts/UserContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ColorProvider } from './contexts/ColorContext';
+import { useAdmin } from './hooks/useAdmin';
 
 import { useUserData } from './hooks/useUserData';
 
@@ -126,7 +129,7 @@ const App: React.FC = () => {
                       ) : (
                         <Layout userStats={userStats}>
                           <Routes>
-                            <Route path="/" element={<Dashboard stats={userStats} />} />
+                            <Route path="/" element={<DashboardRouter stats={userStats} />} />
                             <Route path="/studies" element={<Studies />} />
                             <Route path="/rankings" element={<Rankings />} />
                             <Route path="/community" element={<Community />} />
@@ -135,6 +138,7 @@ const App: React.FC = () => {
                             <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="/sabbath-school" element={<SabbathSchool />} />
+                            <Route path="/sabbath-school/admin" element={<SabbathSchoolAdmin />} />
                             <Route path="/admin" element={<Admin />} />
                             <Route path="/maintenance" element={<Maintenance />} />
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
