@@ -116,11 +116,11 @@ const SabbathSchoolAdmin: React.FC = () => {
             setStatus('🤖 Procesando PDF con IA... Esto puede tomar varios minutos.');
 
             // 5. Process PDF with AI
-            const { data: processData, error: processError } = await supabase.functions.invoke('process-sabbath-pdf', {
+            const { data: processData, error: processError } = await supabase.functions.invoke('process-weekly-lesson', {
                 body: {
                     pdfUrl: publicUrl,
-                    quarterId: quarterData.id,
-                    quarterTitle: title
+                    weekId: quarterData.id,
+                    weekTitle: title
                 }
             });
 
@@ -306,8 +306,8 @@ const SabbathSchoolAdmin: React.FC = () => {
                         {/* Status */}
                         {status && (
                             <div className={`p-4 rounded-lg ${status.startsWith('✅') ? 'bg-green-500/10 text-green-300' :
-                                    status.startsWith('❌') ? 'bg-red-500/10 text-red-300' :
-                                        'bg-blue-500/10 text-blue-300'
+                                status.startsWith('❌') ? 'bg-red-500/10 text-red-300' :
+                                    'bg-blue-500/10 text-blue-300'
                                 }`}>
                                 {processing && <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>}
                                 {status}
