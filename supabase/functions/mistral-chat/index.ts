@@ -1,19 +1,80 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Lista de orígenes permitidos (configurables vía variable de entorno)
+const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',') || [
+    'https://youth-portal.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174'
+];
+
+// Función para obtener headers CORS seguros
+const getCorsHeaders = (origin: string | null) => {
+    const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
+        origin === allowed || origin.endsWith('.vercel.app')
+    );
+
+    return {
+        'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Vary': 'Origin'
+    };
 };
 
 // Start with a reliable model. Llama 3 is fast and good.
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 serve(async (req) => {
+    const origin = req.headers.get('origin');
+    const headers = getCorsHeaders(origin);
+
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
+        return new Response('ok', { headers });
     }
 
     try {
+        // ✅ VERIFICACIÓN JWT: Autenticar usuario
+        const authHeader = req.headers.get('Authorization');
+
+        if (!authHeader) {
+            return new Response(
+                JSON.stringify({ error: 'No autorizado: falta token de autenticación' }),
+                {
+                    status: 401,
+                    headers: { ...headers, 'Content-Type': 'application/json' }
+                }
+            );
+        }
+
+        // Crear cliente de Supabase con el token del usuario
+        const supabaseClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            {
+                global: {
+                    headers: { Authorization: authHeader }
+                }
+            }
+        );
+
+        // Verificar que el token es válido
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+
+        if (authError || !user) {
+            return new Response(
+                JSON.stringify({ error: 'No autorizado: token inválido o expirado' }),
+                {
+                    status: 401,
+                    headers: { ...headers, 'Content-Type': 'application/json' }
+                }
+            );
+        }
+
+        console.log(`[Auth] Usuario verificado: ${user.id}`);
+
+        // ✅ Usuario autenticado, continuar con la lógica normal
         const { action, payload, messages } = await req.json();
         const apiKey = Deno.env.get('GROQ_API_KEY');
 
@@ -62,7 +123,7 @@ serve(async (req) => {
             const data = await response.json();
             const reply = data.choices?.[0]?.message?.content || "";
             return new Response(JSON.stringify({ reply }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                headers: { ...headers, 'Content-Type': 'application/json' },
                 status: 200,
             });
         }
@@ -170,14 +231,14 @@ serve(async (req) => {
 
         // All responses follow consistent object pattern
         return new Response(JSON.stringify(result), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...headers, 'Content-Type': 'application/json' },
             status: 200,
         });
 
     } catch (error) {
         console.error("Function Error:", error);
         return new Response(JSON.stringify({ error: error.message }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...headers, 'Content-Type': 'application/json' },
             status: 400,
         });
     }
