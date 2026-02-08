@@ -87,7 +87,8 @@ const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => {
         setIsLoading(true);
 
         try {
-            const { data, error } = await supabase.functions.invoke('mistral-chat', {
+            // Llamar a la Edge Function
+            const { data, error } = await supabase.functions.invoke('groq-api', {
                 body: { messages: [...messages, userMessage] }
             });
 

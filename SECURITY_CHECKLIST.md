@@ -3,12 +3,12 @@
 ## 🔴 CRÍTICO - Completar HOY
 
 ### Paso 1: Rotar Claves API
-- [ ] Rotar clave Supabase Anon en Dashboard
+- [x] Rotar clave Supabase Anon en Dashboard ✅
 - [ ] Rotar clave GROQ en console.groq.com
 - [ ] Rotar clave Bible API
 - [ ] Configurar nuevas claves en Vercel: `vercel env add`
-- [ ] Configurar GROQ en Supabase: `npx supabase secrets set`
-- [ ] Actualizar `.env` local (NO commitear)
+- [x] Configurar GROQ en Supabase: `npx supabase secrets set` ✅
+- [x] Actualizar `.env` local (NO commitear) ✅
 
 ### Paso 2: Limpiar Git History
 - [ ] Instalar BFG: `choco install bfg`

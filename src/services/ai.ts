@@ -10,7 +10,7 @@ export async function generateQuizQuestion(lessonContent: string): Promise<QuizQ
     try {
         console.log('🤖 Generating quiz for content length:', lessonContent.length);
 
-        const { data, error } = await supabase.functions.invoke('mistral-chat', {
+        const { data, error } = await supabase.functions.invoke('groq-api', {
             body: {
                 action: 'generate_quiz',
                 payload: lessonContent
@@ -63,7 +63,7 @@ export async function generateQuizQuestion(lessonContent: string): Promise<QuizQ
 
 export async function getChapterContext(book: string, chapter: number) {
     try {
-        const { data, error } = await supabase.functions.invoke('mistral-chat', {
+        const { data, error } = await supabase.functions.invoke('groq-api', {
             body: {
                 action: 'chapter_context',
                 payload: { book, chapter }
