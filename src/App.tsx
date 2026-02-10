@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import DashboardRouter from './components/DashboardRouter';
-import AdminDashboard from './components/AdminDashboard';
-import Rankings from './components/Rankings';
-import ReadingRoom from './components/ReadingRoom';
-import BibleLibrary from './components/BibleLibrary';
-import Profile from './components/Profile';
-import Maintenance from './components/Maintenance';
-import Studies from './components/Studies';
-import Community from './components/Community';
-import Settings from './components/Settings';
-import Auth from './components/Auth';
-import UpdatePassword from './components/UpdatePassword';
-import Onboarding from './components/Onboarding';
-import { UserStats, RankingEntry, Badge } from './types';
-import { supabase } from './services/supabase.ts';
-import SabbathSchool from './components/SabbathSchool';
-import SabbathSchoolAdmin from './components/SabbathSchoolAdmin';
-import Admin from './components/Admin';
+// Lazy load components for performance
+const DashboardRouter = React.lazy(() => import('./components/DashboardRouter'));
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
+const Rankings = React.lazy(() => import('./components/Rankings'));
+const ReadingRoom = React.lazy(() => import('./components/ReadingRoom'));
+const BibleLibrary = React.lazy(() => import('./components/BibleLibrary'));
+const Profile = React.lazy(() => import('./components/Profile'));
+const Maintenance = React.lazy(() => import('./components/Maintenance'));
+const Studies = React.lazy(() => import('./components/Studies'));
+const Community = React.lazy(() => import('./components/Community'));
+const Settings = React.lazy(() => import('./components/Settings'));
+const Auth = React.lazy(() => import('./components/Auth'));
+const UpdatePassword = React.lazy(() => import('./components/UpdatePassword'));
+const Onboarding = React.lazy(() => import('./components/Onboarding'));
+const SabbathSchool = React.lazy(() => import('./components/SabbathSchool'));
+const SabbathSchoolAdmin = React.lazy(() => import('./components/SabbathSchoolAdmin'));
+const Admin = React.lazy(() => import('./components/Admin'));
+import { supabase } from './services/supabase';
 import { getCurrentUser } from './services/auth';
 import { User } from '@supabase/supabase-js';
 import { UserProvider } from './contexts/UserContext';
@@ -52,56 +52,35 @@ const App: React.FC = () => {
   const { userStats, badges, profile, isLoading: userDataLoading, invalidateData } = useUserData(session?.id);
   const loading = authLoading || (!!session && userDataLoading);
 
+  /* Safe XP Update via RPC */
   const handleStudyComplete = async (xp: number, data?: { type?: 'quiz'; score?: number; reflection?: string; verse?: string; reference?: string }) => {
     if (!session) return;
 
-    // DB Update
-    try {
-      // 1. Update XP
-      const { error } = await supabase.rpc('increment_xp', { amount: xp, user_id: session.id });
-      if (error) {
-        const { data: current } = await supabase.from('profiles').select('xp').eq('id', session.id).single();
-        if (current) {
-          await supabase.from('profiles').update({ xp: current.xp + xp }).eq('id', session.id);
-        }
-      }
+    // Only process quiz data with RPC
+    if (data?.type === 'quiz' && data.score !== undefined && data.reference) {
+      try {
+        const { error } = await supabase.rpc('submit_quiz_activity', {
+          p_reference: data.reference,
+          p_score: data.score,
+          p_max_score: 3,
+          p_reflection: data.reflection || `Quiz completado - score: ${data.score}/3`
+        });
 
-      // 2. Save or Update Reading Record
-      if (data && data.type === 'quiz' && data.score !== undefined) {
-        const today = new Date().toISOString().split('T')[0];
-        // ... (existing quiz logic remains) ...
-        const { data: existing } = await supabase
-          .from('daily_readings')
-          .select('*')
-          .eq('user_id', session.id)
-          .eq('reference', data.reference || '')
-          .gte('created_at', today)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const reflection = `Quiz completado - score: ${data.score}/3`;
-
-        if (existing) {
-          const existingScoreMatch = existing.reflection?.match(/score: (\d+)\/3/);
-          const existingScore = existingScoreMatch ? parseInt(existingScoreMatch[1]) : 0;
-          if (data.score > existingScore) {
-            await supabase.from('daily_readings').update({ reflection, verse: data.verse || existing.verse }).eq('id', existing.id);
-          }
+        if (error) {
+          console.error("Error submitting quiz activity (RPC):", error);
         } else {
-          await supabase.from('daily_readings').insert({
-            user_id: session.id,
-            verse: data.verse || '',
-            reference: data.reference || '',
-            reflection
-          });
+          // Success - Refresh UI
+          await invalidateData();
         }
+      } catch (e) {
+        console.error("Error in handleStudyComplete:", e);
       }
-
-      // 3. Invalidate Query to re-fetch data
-      await invalidateData();
-
-    } catch (e) { console.error(e); }
+    } else {
+      // Fallback for non-quiz completions (if any)
+      // Or ignore? This app seems centered on quiz completions for XP.
+      // Let's just log.
+      console.log("Skipping XP update for non-quiz activity or missing data.");
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>;
@@ -114,39 +93,47 @@ const App: React.FC = () => {
         <ThemeProvider>
           <Router>
             <Routes>
-              <Route path="/update-password" element={<UpdatePassword />} />
+              <Route path="/update-password" element={
+                <Suspense fallback={<div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>}>
+                  <UpdatePassword />
+                </Suspense>
+              } />
               <Route path="*" element={
                 !session ? (
-                  <Auth onLoginSuccess={() => { }} />
+                  <Suspense fallback={<div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>}>
+                    <Auth onLoginSuccess={() => { }} />
+                  </Suspense>
                 ) : (
-                  <Routes>
-                    <Route path="/onboarding" element={
-                      (profile?.birth_date && profile?.church) ? <Navigate to="/" replace /> : <Onboarding />
-                    } />
-                    <Route path="*" element={
-                      (!profile?.birth_date || !profile?.church) ? (
-                        <Navigate to="/onboarding" replace />
-                      ) : (
-                        <Layout userStats={userStats}>
-                          <Routes>
-                            <Route path="/" element={<DashboardRouter stats={userStats} />} />
-                            <Route path="/studies" element={<Studies />} />
-                            <Route path="/rankings" element={<Rankings />} />
-                            <Route path="/community" element={<Community />} />
-                            <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
-                            <Route path="/bible" element={<BibleLibrary />} />
-                            <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="/sabbath-school" element={<SabbathSchool />} />
-                            <Route path="/sabbath-school/admin" element={<SabbathSchoolAdmin />} />
-                            <Route path="/admin" element={<Admin />} />
-                            <Route path="/maintenance" element={<Maintenance />} />
-                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                          </Routes>
-                        </Layout>
-                      )
-                    } />
-                  </Routes>
+                  <Suspense fallback={<div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Cargando...</div>}>
+                    <Routes>
+                      <Route path="/onboarding" element={
+                        (profile?.birth_date && profile?.church) ? <Navigate to="/" replace /> : <Onboarding />
+                      } />
+                      <Route path="*" element={
+                        (!profile?.birth_date || !profile?.church) ? (
+                          <Navigate to="/onboarding" replace />
+                        ) : (
+                          <Layout userStats={userStats}>
+                            <Routes>
+                              <Route path="/" element={<DashboardRouter stats={userStats} />} />
+                              <Route path="/studies" element={<Studies />} />
+                              <Route path="/rankings" element={<Rankings />} />
+                              <Route path="/community" element={<Community />} />
+                              <Route path="/reading" element={<ReadingRoom onComplete={handleStudyComplete} />} />
+                              <Route path="/bible" element={<BibleLibrary />} />
+                              <Route path="/profile" element={<Profile stats={userStats} badges={badges} />} />
+                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/sabbath-school" element={<SabbathSchool />} />
+                              <Route path="/sabbath-school/admin" element={<SabbathSchoolAdmin />} />
+                              <Route path="/admin" element={<Admin />} />
+                              <Route path="/maintenance" element={<Maintenance />} />
+                              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                            </Routes>
+                          </Layout>
+                        )
+                      } />
+                    </Routes>
+                  </Suspense>
                 )
               } />
             </Routes>

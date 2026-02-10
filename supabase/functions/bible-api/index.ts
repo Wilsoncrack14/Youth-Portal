@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Lista de orígenes permitidos
 const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [
@@ -49,6 +50,18 @@ serve(async (req) => {
     }
 
     try {
+        // ✅ VERIFICACIÓN JWT MANUAL
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) throw new Error('No autorizado: Falta token');
+
+        const supabase = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) throw new Error('No autorizado: Token inválido');
+
         const { book, chapter } = await req.json();
 
         if (!book || !chapter) {

@@ -847,7 +847,7 @@ const SabbathSchool: React.FC = () => {
     );
 
     return (
-        <div className="p-4 lg:p-8 animate-fade-in-up">
+        <div className="p-4 lg:p-10 animate-fade-in-up max-w-5xl mx-auto flex flex-col gap-8">
             <ImageOptimizerModal
                 isOpen={optimizationModalOpen}
                 onClose={() => setOptimizationModalOpen(false)}
@@ -880,509 +880,423 @@ const SabbathSchool: React.FC = () => {
                         <h4 className="font-bold text-sm text-white">{toast.type === 'success' ? '¡Éxito!' : 'Error'}</h4>
                         <p className="text-xs opacity-90">{toast.message}</p>
                     </div>
-                    <button onClick={() => setToast(null)} className="ml-4 opacity-50 hover:opacity-100">
-                        <span className="material-symbols-outlined text-lg">close</span>
-                    </button>
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto">
-                {/* Header & Breadcrumbs */}
-                <div className="mb-6">
-                    {renderBreadcrumbs()}
-                </div>
-
-                {/* --- HEADER REDESIGN --- */}
-                <div className="mb-8 relative group">
-                    <div className="absolute inset-0 bg-blue-600/20 blur-3xl rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                    <div className="bg-gradient-to-r from-[#1e3a8a] to-[#172554] rounded-3xl p-8 md:p-10 relative overflow-hidden shadow-2xl border border-blue-500/10">
-                        {/* Background Decoration */}
-                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                            <span className="material-symbols-outlined text-9xl text-white transform rotate-12 translate-x-8 -translate-y-4">school</span>
-                        </div>
-
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-3 text-blue-200/90">
-                                <span className="material-symbols-outlined text-lg bg-blue-500/20 p-1.5 rounded-lg">menu_book</span>
-                                <span className="text-xs font-bold tracking-[0.2em] uppercase">Escuela Sabática</span>
-                            </div>
-
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight leading-tight">
-                                {!selectedQuarter ? 'Lección Semanal' :
-                                    !selectedWeek ? selectedQuarter.title :
-                                        selectedWeek.title}
-                            </h1>
-
-                            <p className="text-blue-100/80 text-lg md:text-xl max-w-2xl leading-relaxed font-light">
-                                Conecta con Dios a través del estudio profundo de su Palabra y el crecimiento espiritual diario.
-                            </p>
-                        </div>
-
-                        {isAdmin && (
+            {/* Breadcrumbs - Only show if drilling down */}
+            {(selectedQuarter || selectedWeek) && (
+                <div className="flex items-center text-sm text-gray-400 mb-[-1rem] gap-2">
+                    <button
+                        onClick={() => { setSelectedQuarter(null); setSelectedWeek(null); }}
+                        className="hover:text-white transition-colors flex items-center gap-1"
+                    >
+                        <span className="material-symbols-outlined text-lg">home</span>
+                        Inicio
+                    </button>
+                    {selectedQuarter && (
+                        <>
+                            <span className="material-symbols-outlined text-lg">chevron_right</span>
                             <button
-                                onClick={() => setShowAdmin(!showAdmin)}
-                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-sm transition-all shadow-lg"
-                                title="Administrar"
+                                onClick={() => setSelectedWeek(null)}
+                                className={`hover:text-white transition-colors ${!selectedWeek ? 'text-white font-bold' : ''}`}
                             >
-                                <span className="material-symbols-outlined">settings</span>
+                                {selectedQuarter.year} Q{selectedQuarter.quarter}
                             </button>
-                        )}
-                    </div>
+                        </>
+                    )}
+                    {selectedWeek && (
+                        <>
+                            <span className="material-symbols-outlined text-lg">chevron_right</span>
+                            <span className="text-white font-bold">Semana {selectedWeek.week_number}</span>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* HERO SECTION - MATCHING READINGROOM */}
+            <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e1e2d] rounded-2xl p-8 md:p-12 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                    <span className="material-symbols-outlined text-9xl text-white">school</span>
                 </div>
 
-                {/* --- WEEKLY PROGRESS --- */}
-                {/* --- WEEKLY PROGRESS REDESIGN --- */}
-                <div className="bg-[#111218] rounded-3xl p-8 border border-white/5 shadow-2xl mb-10 relative overflow-hidden">
-                    {/* Top: Title + Current Week Info */}
-                    <div className="mb-10">
-                        <h3 className="text-white font-bold text-2xl font-serif tracking-tight">
-                            Progreso Semanal
-                        </h3>
-                        {currentWeekInfo && (
-                            <div className="mt-3 space-y-1">
-                                <div className="flex items-center gap-2 text-blue-300/80">
-                                    <span className="material-symbols-outlined text-sm">auto_stories</span>
-                                    <span className="text-sm font-medium">{currentWeekInfo.quarterTitle}</span>
-                                </div>
-                                <p className="text-white/90 text-lg font-semibold">
-                                    Semana {currentWeekInfo.weekNumber}: {currentWeekInfo.weekTitle}
-                                </p>
-                                <div className="flex items-center gap-2 text-yellow-400/90 mt-1">
-                                    <span className="material-symbols-outlined text-sm">today</span>
-                                    <span className="text-sm font-medium">Hoy: {currentWeekInfo.todayLessonTitle}</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Middle: Days */}
-                    <div className="flex justify-between items-center max-w-4xl mx-auto mb-12 px-2 md:px-8">
-                        {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
-                            const todayDay = new Date().getDay();
-                            const isToday = ((index + 6) % 7) === todayDay;
-                            const isCompleted = weeklyProgress[index];
-
-                            return (
-                                <div key={index} className="flex flex-col items-center gap-5 group cursor-default transition-transform hover:-translate-y-1 duration-300">
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isToday ? 'text-white' : 'text-gray-500'}`}>{day}</span>
-                                    <div
-                                        className={`size-12 md:size-14 rounded-full flex items-center justify-center transition-all duration-500 relative
-                                           ${isToday
-                                                ? 'bg-[#4f46e5] shadow-[0_0_30px_rgba(79,70,229,0.4)] scale-110 z-10 border border-[#6366f1]'
-                                                : 'bg-[#181824] border border-white/5 group-hover:border-white/10'}
-                                           `}
-                                    >
-                                        {isToday ? (
-                                            <span className="material-symbols-outlined text-white text-2xl pl-1">play_arrow</span>
-                                        ) : isCompleted ? (
-                                            <div className="size-2.5 rounded-full bg-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.5)]"></div>
-                                        ) : (
-                                            <div className="size-2 rounded-full bg-[#27273a]"></div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Bottom: Status & Motivation */}
-                    <div className="flex justify-between items-end border-t border-white/5 pt-6">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-xl font-bold text-gray-300">
-                                {Math.round((completedCount / 7) * 100)}%
-                            </span>
-                            <span className="text-gray-500 text-sm font-bold tracking-wide">Completado</span>
-                        </div>
-
-                        <div className="text-right">
-                            {completedCount > 0 ? (
-                                <p className="text-yellow-400 font-bold text-lg tracking-wide">¡Vas bien!</p>
-                            ) : (
-                                <p className="text-gray-500 text-sm font-medium">¡Comienza hoy!</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* --- VIEW 1: QUARTER LIST --- */}
-                {!selectedQuarter && !showAdmin && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {quarters.map((quarter) => (
-                            <div
-                                key={quarter.id}
-                                onClick={() => setSelectedQuarter(quarter)}
-                                className="group cursor-pointer bg-[#1a1b26] rounded-2xl overflow-hidden border border-white/10 hover:border-primary hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
-                            >
-                                {/* Quarter Cover */}
-                                <div className="h-48 overflow-hidden relative">
-                                    {quarter.cover_image_url ? (
-                                        <img
-                                            src={quarter.cover_image_url}
-                                            alt={quarter.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-6xl text-white/30">auto_stories</span>
-                                        </div>
-                                    )}
-                                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
-                                        <span className="font-bold text-white text-sm">{quarter.year} Q{quarter.quarter}</span>
-                                    </div>
-                                </div>
-
-                                {/* Quarter Info */}
-                                <div className="p-5">
-                                    <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">{quarter.title}</h3>
-                                    <p className="text-gray-400 text-sm line-clamp-3 mb-4">{quarter.description}</p>
-                                    <div className="flex items-center text-primary text-sm font-medium">
-                                        <span>Ver lecciones</span>
-                                        <span className="material-symbols-outlined text-lg ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-
-                        {quarters.length === 0 && (
-                            <div className="col-span-full text-center py-12 text-gray-400">
-                                <span className="material-symbols-outlined text-6xl mb-4 block">school</span>
-                                <p>No hay trimestres disponibles</p>
-                            </div>
-                        )}
-                    </div>
+                {isAdmin && (
+                    <button
+                        onClick={() => setShowAdmin(!showAdmin)}
+                        className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-sm transition-all shadow-lg z-20"
+                        title="Administrar"
+                    >
+                        <span className="material-symbols-outlined">settings</span>
+                    </button>
                 )}
 
-                {/* --- VIEW 2: QUARTER DETAILS & WEEKS --- */}
-                {selectedQuarter && !selectedWeek && !showAdmin && (
-                    <div className="space-y-8 animate-fade-in">
-                        {/* Introduction Card */}
-                        <div className="bg-[#1a1b26] rounded-2xl border border-white/10 overflow-hidden flex flex-col lg:flex-row shadow-lg">
-                            <div className="lg:w-1/3 h-64 lg:h-auto relative">
+                <div className="relative z-10 max-w-2xl">
+                    <div className="flex items-center gap-3 mb-4 text-blue-200">
+                        <span className="material-symbols-outlined">menu_book</span>
+                        <span className="uppercase tracking-widest text-xs font-bold">Escuela Sabática</span>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
+                        {!selectedQuarter ? 'Lección Semanal' :
+                            !selectedWeek ? selectedQuarter.title :
+                                selectedWeek.title}
+                    </h1>
+                    <p className="text-lg text-blue-100 mb-8 opacity-90">
+                        Conecta con Dios a través del estudio profundo de su Palabra y el crecimiento espiritual diario.
+                    </p>
+
+                    {/* Optional: Add Action Button if needed, mostly context dependent */}
+                </div>
+            </div>
+
+            {/* WEEKLY PROGRESS - MATCHING READINGROOM */}
+            <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-none">
+                <h3 className="font-serif text-2xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
+                {currentWeekInfo && (
+                    <div className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+                        {currentWeekInfo.quarterTitle} • Semana {currentWeekInfo.weekNumber}
+                    </div>
+                )}
+                <div className="flex justify-between items-center max-w-3xl mx-auto">
+                    {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
+                        const todayDay = new Date().getDay(); // 0=Sun, 6=Sat
+                        // Sabbath School week: Sat(0), Sun(1)... Fri(6) in our array logic?
+                        // The existing logic used `DAYS` array order: sat, sun, mon...
+                        // Let's align visual index with logic index.
+                        // visual index 0 = 'S' (Sat). JS Day 6.
+                        // visual index 1 = 'D' (Sun). JS Day 0.
+
+                        // Determine if "Today" matches this index
+                        // index 0 -> Sat (6)
+                        // index 1 -> Sun (0)
+                        // index 2 -> Mon (1)
+                        // Formula: (index + 6) % 7 === todayDay? 
+                        // Check: 
+                        // i=0 -> 6%7=6 (Sat) -> Correct.
+                        // i=1 -> 7%7=0 (Sun) -> Correct.
+
+                        const isToday = ((index + 6) % 7) === todayDay;
+                        const isCompleted = weeklyProgress[index];
+
+                        let status = 'upcoming';
+                        if (isCompleted) {
+                            status = 'completed';
+                        } else if (isToday) {
+                            status = 'active';
+                        } else if (!isCompleted && !isToday) {
+                            // Simple past check? 
+                            // If today is Monday(1, index 2), then Sat(0) and Sun(1) are past.
+                            // Logic: current index > this index ?
+                            // Need to map todayDay to 0-6 scale where Sat=0.
+                            const currentDayIndex = (todayDay + 1) % 7;
+                            if (index < currentDayIndex) status = 'missed';
+                        }
+
+                        return (
+                            <div key={index} className="flex flex-col items-center gap-3">
+                                <span className="text-xs font-bold text-gray-500">{day}</span>
+                                <div className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all
+                                        ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black' :
+                                        status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' :
+                                            status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-300' :
+                                                'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
+                                     `}>
+                                    {status === 'completed' && <span className="material-symbols-outlined">check</span>}
+                                    {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
+                                    {status === 'missed' && <span className="size-2 bg-red-400 rounded-full"></span>}
+                                    {status === 'upcoming' && <span className="size-2 bg-gray-600 rounded-full"></span>}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="mt-8 flex justify-between items-center text-sm text-gray-400 px-4">
+                    <span>{Math.round((completedCount / 7) * 100)}% Completado</span>
+                    <span className="text-accent-gold font-bold">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
+                </div>
+            </div>
+
+            {/* MAIN CONTENT AREA */}
+
+            {/* VIEW 1: QUARTER LIST (If nothing selected) */}
+            {!selectedQuarter && !showAdmin && (
+                <div className="grid gap-4">
+                    <h3 className="font-bold text-gray-400 text-sm uppercase tracking-widest ml-1">Trimestres Disponibles</h3>
+                    {quarters.map((quarter) => (
+                        <div
+                            key={quarter.id}
+                            onClick={() => setSelectedQuarter(quarter)}
+                            className="bg-white dark:bg-[#14151f] hover:bg-gray-50 dark:hover:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group cursor-pointer shadow-sm dark:shadow-none"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="h-16 w-12 rounded bg-gray-200 overflow-hidden flex-shrink-0">
+                                    {quarter.cover_image_url ? (
+                                        <img src={quarter.cover_image_url} className="w-full h-full object-cover" alt="cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400"><span className="material-symbols-outlined">auto_stories</span></div>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-gray-900 dark:text-white font-serif font-bold text-lg">{quarter.title}</p>
+                                    <p className="text-gray-500 text-xs">
+                                        {quarter.year} Q{quarter.quarter} • {quarter.start_date} - {quarter.end_date}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">arrow_forward_ios</span>
+                        </div>
+                    ))}
+                    {quarters.length === 0 && (
+                        <div className="text-center py-12 text-gray-400">
+                            <span className="material-symbols-outlined text-4xl mb-2">school</span>
+                            <p>No hay trimestres disponibles</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* VIEW 2: QUARTER DETAILS & WEEKS */}
+            {selectedQuarter && !selectedWeek && !showAdmin && (
+                <div className="space-y-8 animate-fade-in">
+                    {/* Intro Card */}
+                    <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm">
+                        <div className="flex flex-col md:flex-row gap-6">
+                            <div className="w-full md:w-1/3 aspect-video md:aspect-auto md:h-64 rounded-xl overflow-hidden relative">
                                 {selectedQuarter.cover_image_url ? (
                                     <img src={selectedQuarter.cover_image_url} alt={selectedQuarter.title} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-8xl text-white/20">auto_stories</span>
+                                    <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-6xl text-white/20">auto_stories</span>
                                     </div>
                                 )}
                             </div>
-                            <div className="p-6 lg:p-8 flex-1 flex flex-col justify-center">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm font-bold border border-primary/20">
-                                        {selectedQuarter.year} Q{selectedQuarter.quarter}
-                                    </span>
-                                    <span className="text-gray-400 text-sm">
-                                        {selectedQuarter.start_date} - {selectedQuarter.end_date}
-                                    </span>
+                            <div className="flex-1">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{selectedQuarter.title}</h2>
+                                <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+                                    {selectedQuarter.introduction || selectedQuarter.description}
+                                </p>
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold">
+                                    <span className="material-symbols-outlined text-sm">calendar_today</span>
+                                    {selectedQuarter.start_date} - {selectedQuarter.end_date}
                                 </div>
-                                <h2 className="text-3xl font-bold text-white mb-4">{selectedQuarter.title}</h2>
-                                <div className="prose prose-invert max-w-none text-gray-300">
-                                    <h3 className="text-lg font-semibold text-white/80 mb-2">Introducción</h3>
-                                    <p className="whitespace-pre-wrap leading-relaxed">{selectedQuarter.introduction || selectedQuarter.description}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Weeks Grid */}
-                        <div>
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-primary">calendar_view_week</span>
-                                    Lecciones del Trimestre
-                                </h3>
-                                {isAdmin && (
-                                    <button
-                                        onClick={() => setShowAdmin(true)}
-                                        className="bg-primary/20 hover:bg-primary/30 text-primary font-bold py-2 px-4 rounded-lg flex items-center gap-2 text-sm"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">edit</span>
-                                        Editar Trimestre
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                                {weeks.map((week) => (
-                                    <div
-                                        key={week.id}
-                                        onClick={() => setSelectedWeek(week)}
-                                        className="group cursor-pointer bg-[#1a1b26] rounded-xl overflow-hidden border border-white/10 hover:border-primary hover:shadow-lg hover:shadow-primary/10 transition-all duration-200"
-                                    >
-                                        <div className="h-40 overflow-hidden relative">
-                                            {week.cover_image_url ? (
-                                                <img
-                                                    src={week.cover_image_url}
-                                                    alt={week.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full bg-gradient-to-br from-[#292938] to-[#1f1f2e] flex items-center justify-center">
-                                                    <span className="material-symbols-outlined text-4xl text-white/20">menu_book</span>
-                                                </div>
-                                            )}
-                                            <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded text-xs font-bold text-white border border-white/10">
-                                                Lesson {week.week_number}
-                                            </div>
-                                        </div>
-                                        <div className="p-4">
-                                            <h4 className="text-white font-bold text-sm lg:text-base line-clamp-2 mb-1 group-hover:text-primary transition-colors">
-                                                {week.title}
-                                            </h4>
-                                            <p className="text-xs text-gray-500 group-hover:text-primary/70 transition-colors">Click para estudiar</p>
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     </div>
-                )}
 
-                {/* --- VIEW 3: WEEKLY LESSON CONTENT --- */}
-                {selectedWeek && !showAdmin && (
-                    <div className="bg-[#1a1b26] rounded-2xl border border-white/5 p-4 lg:p-8 animate-fade-in shadow-xl shadow-black/20">
-                        {/* Week Header */}
-                        <div className="mb-8 border-b border-white/10 pb-6">
-                            <span className="text-primary text-sm font-bold tracking-wider uppercase mb-1 block">Lección Semanal</span>
-                            <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">{selectedWeek.title}</h2>
-                            {selectedWeek.memory_verse && (
-                                <div className="bg-[#25263a] p-4 lg:p-6 rounded-xl border-l-4 border-accent-gold italic text-gray-300 relative">
-                                    <span className="material-symbols-outlined absolute top-4 left-4 text-accent-gold/20 text-4xl">format_quote</span>
-                                    <p className="pl-6 md:pl-8 text-lg">"{selectedWeek.memory_verse}"</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Days Navigation */}
-                        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                            {DAYS.map((day) => (
-                                <button
-                                    key={day}
-                                    onClick={() => setSelectedDay(day)}
-                                    className={`px-4 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all duration-200 flex flex-col items-center min-w-[80px] ${selectedDay === day
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/30 transform -translate-y-1'
-                                        : 'bg-[#292938] text-gray-400 hover:bg-[#343447] hover:text-white'
-                                        }`}
-                                >
-                                    <span className="text-xs opacity-70 uppercase tracking-wider">{DAY_NAMES[day].substring(0, 3)}</span>
-                                    <span className="text-sm font-bold">{DAY_NAMES[day]}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Daily Lesson Content */}
-                        <div className="min-h-[400px]">
-                            {getCurrentDayLesson() ? (
-                                <DailyLessonView
-                                    lesson={getCurrentDayLesson()!}
-                                    onVerseClick={handleVerseClick}
-                                />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-[#15161e] rounded-xl border border-dashed border-white/10">
-                                    <span className="material-symbols-outlined text-4xl mb-4 opacity-50">content_paste_off</span>
-                                    <p>No hay contenido disponible para este día</p>
-                                </div>
-                            )}
-
-                            {/* Quiz Section */}
-                            {getCurrentDayLesson() && (
-                                <div className="mt-12 pt-8 border-t border-white/10">
-                                    <div className="bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-2xl p-8 text-center border border-white/5">
-                                        <h3 className="text-2xl font-bold text-white mb-2">¿Terminaste el estudio de hoy?</h3>
-                                        <p className="text-gray-400 mb-6">Completa un breve cuestionario para registrar tu progreso y ganar experiencia.</p>
-
-                                        {quizCompletedToday ? (
-                                            <div className="flex flex-col items-center gap-3 animate-fade-in">
-                                                <div className="size-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mb-2 border border-green-500/30">
-                                                    <span className="material-symbols-outlined text-3xl">emoji_events</span>
-                                                </div>
-                                                <h4 className="text-xl font-bold text-white">¡Lección Completada!</h4>
-                                                <p className="text-green-400 font-medium">Puntuación: {todayQuizScore}/3</p>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={startQuiz}
-                                                disabled={generatingQuiz}
-                                                className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-wait"
-                                            >
-                                                {generatingQuiz ? (
-                                                    <>
-                                                        <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                                        Generando Preguntas...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="material-symbols-outlined">quiz</span>
-                                                        Completar Lección
-                                                    </>
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* --- ADMIN PANEL --- */}
-                {showAdmin && isAdmin && (
-                    <div className="bg-[#1a1b26] rounded-2xl border border-white/5 p-6 mb-8 animate-fade-in shadow-xl">
-                        <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
-                                Panel de Administración
-                            </h2>
-                            {selectedQuarter && (
+                    {/* Weeks Grid */}
+                    <div className="grid gap-4">
+                        <h3 className="font-bold text-gray-400 text-sm uppercase tracking-widest ml-1">Lecciones</h3>
+                        {weeks.map((week) => (
+                            <div
+                                key={week.id}
+                                onClick={() => setSelectedWeek(week)}
+                                className="bg-white dark:bg-[#14151f] hover:bg-gray-50 dark:hover:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group cursor-pointer shadow-sm dark:shadow-none"
+                            >
                                 <div className="flex items-center gap-4">
-                                    <span className="text-gray-400 text-sm">Editando: <strong className="text-white">{selectedQuarter.title}</strong></span>
-                                    <button
-                                        onClick={() => setSelectedQuarter(null)}
-                                        className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition-colors"
-                                    >
-                                        Cambiar Trimestre
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {!selectedQuarter ? (
-                            // CREATE NEW QUARTER
-                            renderQuarterForm(false)
-                        ) : (
-                            // MANAGE EXISTING QUARTER (TABS)
-                            <div className="animate-fade-in">
-                                {/* Tabs */}
-                                <div className="flex gap-4 mb-6 border-b border-white/10">
-                                    <button
-                                        onClick={() => setActiveTab('weeks')}
-                                        className={`pb-2 px-2 font-medium transition-colors relative ${activeTab === 'weeks' ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-white'}`}
-                                    >
-                                        Gestionar Lecciones
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('details')}
-                                        className={`pb-2 px-2 font-medium transition-colors relative ${activeTab === 'details' ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-white'}`}
-                                    >
-                                        Editar Detalles del Trimestre
-                                    </button>
-                                </div>
-
-                                {/* Tab Content */}
-                                {activeTab === 'weeks' ? (
-                                    <div className="bg-[#222330] p-6 rounded-xl border border-white/5">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-white">Gestionar Lecciones</h3>
-                                                <p className="text-gray-400 text-sm">Sube el PDF e imagen para cada semana</p>
-                                            </div>
-                                        </div>
-
-                                        {weeks.length > 0 ? (
-                                            <WeekManagement
-                                                weeks={weeks}
-                                                quarterId={selectedQuarter.id}
-                                                onUpdate={() => loadWeeks(selectedQuarter.id)}
-                                            />
-                                        ) : (
-                                            <div className="text-center py-8 text-gray-500 bg-black/20 rounded-lg border border-dashed border-white/10">
-                                                <span className="material-symbols-outlined text-4xl mb-2 opacity-50">warning</span>
-                                                <p>No hay semanas generadas. Algo salió mal al crear el trimestre.</p>
-                                            </div>
-                                        )}
+                                    <div className="size-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold">
+                                        {week.week_number}
                                     </div>
-                                ) : (
-                                    <div className="animate-fade-in">
-                                        {renderQuarterForm(true)}
+                                    <div>
+                                        <p className="text-gray-900 dark:text-white font-bold text-base">{week.title}</p>
+                                        <p className="text-gray-500 text-xs">
+                                            {week.start_date} - {week.end_date}
+                                        </p>
                                     </div>
-                                )}
+                                </div>
+                                <span className="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">arrow_forward</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* VIEW 3: WEEKLY LESSON CONTENT (Reader) */}
+            {selectedWeek && !showAdmin && (
+                <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm overflow-hidden">
+                    {/* Week Header */}
+                    <div className="mb-8 border-b border-gray-100 dark:border-white/5 pb-6">
+                        <span className="text-primary text-sm font-bold tracking-wider uppercase mb-1 block">Lección Semanal</span>
+                        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-4">{selectedWeek.title}</h2>
+                        {selectedWeek.memory_verse && (
+                            <div className="bg-gray-50 dark:bg-[#25263a] p-6 rounded-xl border-l-4 border-accent-gold italic text-gray-600 dark:text-gray-300 relative">
+                                <span className="material-symbols-outlined absolute top-4 left-4 text-accent-gold/20 text-4xl">format_quote</span>
+                                <p className="pl-6 md:pl-8 text-lg">"{selectedWeek.memory_verse}"</p>
                             </div>
                         )}
                     </div>
-                )}
 
-            </div >
+                    {/* Days Tabs (Scrollable) */}
+                    <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                        {DAYS.map((day) => (
+                            <button
+                                key={day}
+                                onClick={() => setSelectedDay(day)}
+                                className={`px-4 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all duration-200 flex flex-col items-center min-w-[80px] ${selectedDay === day
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30 transform -translate-y-1'
+                                    : 'bg-gray-100 dark:bg-[#292938] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#343447]'
+                                    }`}
+                            >
+                                <span className="text-xs opacity-70 uppercase tracking-wider">{DAY_NAMES[day].substring(0, 3)}</span>
+                                <span className="text-sm font-bold">{DAY_NAMES[day]}</span>
+                            </button>
+                        ))}
+                    </div>
 
-            {/* Quiz Modal */}
-            {showQuizModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-[#1a1b26] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-scale-up">
-                        {!quizFinished ? (
-                            <div className="p-6 md:p-8">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-white">Comprobación de Lectura</h3>
-                                    <button onClick={() => setShowQuizModal(false)} className="text-gray-400 hover:text-white">
-                                        <span className="material-symbols-outlined">close</span>
-                                    </button>
-                                </div>
-
-                                {generatingQuiz ? (
-                                    <div className="text-center py-12">
-                                        <div className="size-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                                        <p className="text-gray-400">Analizando la lección...</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="mb-6">
-                                            <span className="text-xs font-bold text-primary tracking-wider uppercase mb-2 block">
-                                                Pregunta {currentQuestion + 1} de {quizQuestions.length}
-                                            </span>
-                                            <h4 className="text-lg text-white font-medium leading-relaxed">
-                                                {quizQuestions[currentQuestion]?.question}
-                                            </h4>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {quizQuestions[currentQuestion]?.options.map((option: string, idx: number) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => handleAnswer(idx)}
-                                                    className="w-full text-left p-4 rounded-xl bg-[#25263a] hover:bg-[#2f304a] border border-white/5 hover:border-primary/30 transition-all text-gray-300 hover:text-white flex items-center justify-between group"
-                                                >
-                                                    <span>{option}</span>
-                                                    <span className="material-symbols-outlined text-gray-600 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
-                                                        arrow_forward
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                    {/* Content Body - Card Style Matching ReadingRoom */}
+                    <div className="min-h-[400px] bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-lg relative overflow-hidden group">
+                        {getCurrentDayLesson() ? (
+                            <DailyLessonView
+                                lesson={getCurrentDayLesson()!}
+                                onVerseClick={handleVerseClick}
+                            />
                         ) : (
-                            <div className="p-8 text-center bg-gradient-to-b from-[#1a1b26] to-[#15161e]">
-                                <div className="mb-6 relative inline-block">
-                                    <div className="size-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto border border-green-500/30">
-                                        <span className="material-symbols-outlined text-5xl text-green-400">emoji_events</span>
-                                    </div>
-                                    {avatarUrl && (
-                                        <img
-                                            src={avatarUrl}
-                                            alt={username}
-                                            className="absolute -bottom-2 -right-2 size-10 rounded-full border-2 border-[#1a1b26]"
-                                        />
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50 dark:bg-[#15161e] rounded-xl border border-dashed border-gray-200 dark:border-white/10">
+                                <span className="material-symbols-outlined text-4xl mb-4 opacity-50">content_paste_off</span>
+                                <p>No hay contenido disponible para este día</p>
+                            </div>
+                        )}
+
+                        {/* Quiz Call to Action */}
+                        {getCurrentDayLesson() && (
+                            <div className="mt-12 pt-8 border-t border-gray-100 dark:border-white/10">
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-primary/10 dark:to-purple-500/10 rounded-2xl p-8 text-center border border-blue-100 dark:border-white/5">
+                                    {showQuizModal ? (
+                                        <div className="animate-fade-in w-full max-w-2xl mx-auto text-left">
+                                            {!quizFinished ? (
+                                                <div className="bg-[#1a1b26] rounded-xl border border-white/10 p-6 md:p-8 shadow-lg">
+                                                    <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                                                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                                            <span className="material-symbols-outlined text-primary">quiz</span>
+                                                            Comprobación de Lectura
+                                                        </h3>
+                                                        <button
+                                                            onClick={() => setShowQuizModal(false)}
+                                                            className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-full"
+                                                            title="Cancelar cuestionario"
+                                                        >
+                                                            <span className="material-symbols-outlined">close</span>
+                                                        </button>
+                                                    </div>
+
+                                                    {generatingQuiz ? (
+                                                        <div className="text-center py-8">
+                                                            <div className="size-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                                            <p className="text-gray-400 animate-pulse">Analizando la lección con IA...</p>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="mb-6">
+                                                                <div className="flex justify-between items-end mb-2">
+                                                                    <span className="text-xs font-bold text-primary tracking-wider uppercase">Pregunta {currentQuestion + 1} de {quizQuestions.length}</span>
+                                                                    <span className="text-xs text-gray-500">{Math.round(((currentQuestion) / quizQuestions.length) * 100)}% Completado</span>
+                                                                </div>
+                                                                <div className="w-full bg-gray-700 rounded-full h-1.5 mb-4">
+                                                                    <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${((currentQuestion) / quizQuestions.length) * 100}%` }}></div>
+                                                                </div>
+                                                                <h4 className="text-lg text-white font-medium leading-relaxed">{quizQuestions[currentQuestion]?.question}</h4>
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                {quizQuestions[currentQuestion]?.options.map((option: string, idx: number) => (
+                                                                    <button
+                                                                        key={idx}
+                                                                        onClick={() => handleAnswer(idx)}
+                                                                        className="w-full text-left p-4 rounded-xl bg-[#25263a] hover:bg-[#2f304a] border border-white/5 hover:border-primary/50 transition-all text-gray-300 hover:text-white flex items-center justify-between group"
+                                                                    >
+                                                                        <span className="flex-1">{option}</span>
+                                                                        <span className="material-symbols-outlined text-gray-600 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all">arrow_forward</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="bg-[#1a1b26] rounded-xl border border-white/10 p-8 text-center shadow-lg animate-scale-up">
+                                                    <div className="size-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto border border-green-500/30 mb-6">
+                                                        <span className="material-symbols-outlined text-4xl text-green-400">emoji_events</span>
+                                                    </div>
+                                                    <h3 className="text-2xl font-bold text-white mb-2">¡Lección Completada!</h3>
+                                                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2">{quizScore}/{quizQuestions.length}</div>
+                                                    <p className="text-gray-400 mb-8">Has reforzado tu aprendizaje de hoy.</p>
+                                                    <button
+                                                        onClick={() => setShowQuizModal(false)}
+                                                        className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl transition-all hover:scale-105 w-full md:w-auto shadow-lg shadow-primary/20"
+                                                    >
+                                                        Continuar
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">¿Terminaste el estudio de hoy?</h3>
+                                            <p className="text-gray-500 dark:text-gray-400 mb-6">Completa un breve cuestionario para registrar tu progreso y ganar experiencia.</p>
+
+                                            {quizCompletedToday ? (
+                                                <div className="flex flex-col items-center gap-3 animate-fade-in">
+                                                    <div className="size-16 bg-green-500/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2 border border-green-500/30">
+                                                        <span className="material-symbols-outlined text-3xl">emoji_events</span>
+                                                    </div>
+                                                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">¡Lección Completada!</h4>
+                                                    <p className="text-green-600 dark:text-green-400 font-medium">Puntuación: {todayQuizScore}/3</p>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={startQuiz}
+                                                    disabled={generatingQuiz}
+                                                    className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-wait"
+                                                >
+                                                    <span className="material-symbols-outlined">quiz</span>
+                                                    Completar Lección
+                                                </button>
+                                            )}
+                                        </>
                                     )}
                                 </div>
-
-                                <h3 className="text-2xl font-bold text-white mb-2">¡Completado!</h3>
-                                <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2">
-                                    {quizScore}/{quizQuestions.length}
-                                </div>
-                                <p className="text-gray-400 mb-2">Has completado el estudio de hoy.</p>
-                                <p className="text-xl font-bold text-white mb-8">
-                                    Completado {completedCount} de 7
-                                </p>
-
-                                <button
-                                    onClick={() => setShowQuizModal(false)}
-                                    className="bg-white text-black font-bold py-3 px-8 rounded-xl hover:bg-gray-200 transition-colors w-full"
-                                >
-                                    Continuar
-                                </button>
                             </div>
                         )}
                     </div>
                 </div>
             )}
+
+            {/* --- ADMIN PANEL (Retained Functional, Styles Updated Lite) --- */}
+            {showAdmin && isAdmin && (
+                <div className="bg-white dark:bg-[#1a1b26] rounded-2xl border border-gray-200 dark:border-white/5 p-6 mb-8 animate-fade-in shadow-xl">
+                    <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-white/10 pb-4">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
+                            Panel de Administración
+                        </h2>
+                        {selectedQuarter && (
+                            <div className="flex items-center gap-4">
+                                <span className="text-gray-500 text-sm">Editando: <strong className="text-gray-900 dark:text-white">{selectedQuarter.title}</strong></span>
+                                <button
+                                    onClick={() => setSelectedQuarter(null)}
+                                    className="text-xs bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-white px-3 py-1.5 rounded transition-colors"
+                                >
+                                    Cambiar Trimestre
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {!selectedQuarter ? (
+                        renderQuarterForm(false)
+                    ) : (
+                        <div className="animate-fade-in">
+                            <div className="flex gap-4 mb-6 border-b border-gray-100 dark:border-white/10">
+                                <button onClick={() => setActiveTab('weeks')} className={`pb-2 px-2 font-medium ${activeTab === 'weeks' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}>Gestionar Lecciones</button>
+                                <button onClick={() => setActiveTab('details')} className={`pb-2 px-2 font-medium ${activeTab === 'details' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}>Editar Detalles</button>
+                            </div>
+                            {activeTab === 'weeks' ? (
+                                <div className="bg-gray-50 dark:bg-[#222330] p-6 rounded-xl border border-gray-200 dark:border-white/5">
+                                    <WeekManagement weeks={weeks} quarterId={selectedQuarter.id} onUpdate={() => loadWeeks(selectedQuarter.id)} />
+                                </div>
+                            ) : renderQuarterForm(true)}
+                        </div>
+                    )}
+                </div>
+            )}
+
+
         </div >
     );
 };
