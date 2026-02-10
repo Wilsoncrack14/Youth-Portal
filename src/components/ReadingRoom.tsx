@@ -9,58 +9,13 @@ interface ReadingRoomProps {
   onComplete: (xp: number, data?: { type: 'quiz'; score: number; reference: string }) => void;
 }
 
-interface DailyLesson {
-  id: string;
-  week_id: string;
-  day: string;
-  title: string;
-  content: string;
-  bible_verses: string[];
-  reflection_questions: string[];
-  weeks?: {
-    title: string;
-    start_date: string;
-    end_date: string;
-  };
-}
-
 const getTodayDayName = () => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[new Date().getDay()];
 };
 
-const fetchDailyLesson = async (): Promise<DailyLesson | null> => {
-  try {
-    const today = getTodayDayName();
-    // Fetch the lesson for today, prioritizing the most recently updated one
-    // Ideally this should link to the "current week" based on dates, but this is a solid fallback
-    const { data, error } = await supabase
-      .from('daily_lessons')
-      .select(`
-              *,
-              weeks ( title, start_date, end_date )
-          `)
-      .eq('day', today)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error) {
-      // If 406 (none found), just return null
-      if (error.code !== 'PGRST116') {
-        console.error('Error fetching daily lesson:', error);
-      }
-      return null;
-    }
-    return data;
-  } catch (err) {
-    return null;
-  }
-};
-
 const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
   const [viewMode, setViewMode] = useState<'hub' | 'read'>('hub');
-  const [readingType, setReadingType] = useState<'bible' | 'lesson'>('bible'); // New state tracking
 
   return (
     <div className="animate-fade-in-up h-full">
@@ -68,12 +23,10 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
         <ReadingView
           onComplete={onComplete}
           onBack={() => setViewMode('hub')}
-          type={readingType}
         />
       ) : (
         <ReavivadosHub
-          onRead={(type) => {
-            setReadingType(type);
+          onRead={() => {
             setViewMode('read');
           }}
         />
@@ -84,16 +37,15 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
 
 // --- SUB-COMPONENTS ---
 
-const ReavivadosHub: React.FC<{ onRead: (type: 'bible' | 'lesson') => void }> = ({ onRead }) => {
+const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
   const [dailyReading, setDailyReading] = useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
-  const [dailyLesson, setDailyLesson] = useState<DailyLesson | null>(null);
-  const [activeTab, setActiveTab] = useState<'bible' | 'lesson'>('bible');
   const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>(new Array(7).fill(false));
   const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     fetchDailyChapter().then(setDailyReading);
-    fetchDailyLesson().then(setDailyLesson);
+    fetchDailyChapter().then(setDailyReading);
+    fetchWeeklyProgress();
     fetchWeeklyProgress();
   }, []);
 
@@ -254,72 +206,31 @@ const ReavivadosHub: React.FC<{ onRead: (type: 'bible' | 'lesson') => void }> = 
 
 
 
-      {/* TABS & CONTENT */}
+      {/* CONTENT */}
       <div>
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setActiveTab('bible')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'bible' ? 'bg-white dark:bg-primary text-black dark:text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            📖 Biblia
-          </button>
-          <button
-            onClick={() => setActiveTab('lesson')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'lesson' ? 'bg-white dark:bg-primary text-black dark:text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            🎓 Lección
-          </button>
-        </div>
-
         {/* TODAY'S READING CARD */}
         <div className="bg-[#fffbf0] dark:bg-[#1a1b26] border border-white/5 rounded-2xl p-6 md:p-8 shadow-lg relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-black/20 to-transparent pointer-events-none"></div>
 
-          {activeTab === 'bible' ? (
-            <div className="max-w-2xl relative z-10 animate-fade-in">
-              <span className="text-gray-500 font-bold text-sm mb-2 block">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-              <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4">
-                {dailyReading ? dailyReading.reference : "Cargando..."}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
-                {dailyReading ? `"${dailyReading.text.substring(0, 180)}..."` : "Preparando la lectura de hoy..."}
-              </p>
+          <div className="max-w-2xl relative z-10 animate-fade-in">
+            <span className="text-gray-500 font-bold text-sm mb-2 block">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4">
+              {dailyReading ? dailyReading.reference : "Cargando..."}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
+              {dailyReading ? `"${dailyReading.text.substring(0, 180)}..."` : "Preparando la lectura de hoy..."}
+            </p>
 
-              <div className="flex flex-wrap gap-4">
-                <button
-                  onClick={() => onRead('bible')}
-                  className="bg-accent-gold hover:bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg"
-                >
-                  <span className="material-symbols-outlined">auto_stories</span>
-                  Leer Capítulo
-                </button>
-              </div>
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => onRead('bible')}
+                className="bg-accent-gold hover:bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg"
+              >
+                <span className="material-symbols-outlined">auto_stories</span>
+                Leer Capítulo
+              </button>
             </div>
-          ) : (
-            <div className="max-w-2xl relative z-10 animate-fade-in">
-              <span className="text-blue-400 font-bold text-sm mb-2 block uppercase tracking-wider">
-                {dailyLesson?.weeks?.title || 'Escuela Sabática'}
-              </span>
-              <h2 className="text-3xl md:text-4xl font-serif font-black text-gray-900 dark:text-white mb-4 leading-tight">
-                {dailyLesson ? dailyLesson.title : "No hay lección para hoy"}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
-                {dailyLesson ? dailyLesson.content.substring(0, 180) + "..." : "Parece que no se ha subido la lección para este día. Intenta leer la Biblia mientras tanto."}
-              </p>
-
-              <div className="flex flex-wrap gap-4">
-                {dailyLesson && (
-                  <button
-                    onClick={() => onRead('lesson')}
-                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg"
-                  >
-                    <span className="material-symbols-outlined">school</span>
-                    Estudiar Lección
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -368,7 +279,7 @@ interface Question {
   correctAnswer: number;
 }
 
-const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBack: () => void, type: 'bible' | 'lesson' }> = ({ onComplete, onBack, type }) => {
+const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBack: () => void }> = ({ onComplete, onBack }) => {
   // Quiz State
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -384,7 +295,6 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
   // Reading State
   const [chapterData, setChapterData] = useState<{ reference: string; text: string; book: string; chapter: number } | null>(null);
-  const [lessonData, setLessonData] = useState<DailyLesson | null>(null);
   const [contextData, setContextData] = useState<{ previous_summary: string; current_preview: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -398,16 +308,10 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     const loadContent = async () => {
       setLoading(true);
       try {
-        if (type === 'bible') {
-          if (state?.book && state?.chapter) {
-            await loadReading(state.book, state.chapter);
-          } else {
-            await loadReading();
-          }
+        if (state?.book && state?.chapter) {
+          await loadReading(state.book, state.chapter);
         } else {
-          // Load Lesson
-          const lesson = await fetchDailyLesson();
-          setLessonData(lesson);
+          await loadReading();
         }
       } catch (e) { console.error(e) }
       setLoading(false);
@@ -415,7 +319,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
     loadContent();
     fetchUserProfile();
-  }, [location.state, type]);
+  }, [location.state]);
 
   // Check quiz completion when chapter data changes
   useEffect(() => {
@@ -512,14 +416,8 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     setLoading(false);
   };
 
-  // Helper for quiz
-  const getContentForQuiz = () => {
-    if (type === 'lesson' && lessonData) return lessonData.content;
-    return chapterData?.text;
-  };
-
   const startQuiz = async () => {
-    const textContent = getContentForQuiz();
+    const textContent = chapterData?.text;
     if (!textContent) return;
 
 
@@ -633,22 +531,10 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
         {/* Reading Header & Context */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            {type === 'bible' ? (
-              <>
-                <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
-                  {chapterData?.book} {chapterData?.chapter}
-                </h1>
-                <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
-              </>
-            ) : (
-              <>
-                <span className="text-primary font-bold tracking-widest uppercase text-xs">{lessonData?.day}</span>
-                <h1 className="text-gray-900 dark:text-white text-3xl md:text-4xl font-black leading-tight">
-                  {lessonData?.title || 'Lección de hoy'}
-                </h1>
-                {lessonData?.weeks?.title && <p className="text-gray-500 text-lg">{lessonData.weeks.title}</p>}
-              </>
-            )}
+            <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
+              {chapterData?.book} {chapterData?.chapter}
+            </h1>
+            <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
           </div>
 
           {/* AI Context Card */}
@@ -680,30 +566,8 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
           <article className="p-8 md:p-12">
             <div className="font-serif text-gray-800 dark:text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
-              {type === 'bible' ? chapterData?.text : lessonData?.content}
+              {chapterData?.text}
             </div>
-
-            {type === 'lesson' && lessonData?.bible_verses && lessonData.bible_verses.length > 0 && (
-              <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 max-w-prose mx-auto">
-                <h3 className="font-bold text-lg mb-4 text-primary">Versículos de apoyo</h3>
-                <div className="flex flex-wrap gap-2">
-                  {lessonData.bible_verses.map((verse, i) => (
-                    <span key={i} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">{verse}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {type === 'lesson' && lessonData?.reflection_questions && (
-              <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 max-w-prose mx-auto">
-                <h3 className="font-bold text-lg mb-4 text-indigo-400">Para reflexionar</h3>
-                <ul className="list-disc pl-5 space-y-2 text-gray-400">
-                  {lessonData.reflection_questions.map((q, i) => (
-                    <li key={i}>{q}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </article>
         </section>
 

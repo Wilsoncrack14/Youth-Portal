@@ -364,20 +364,39 @@ export const getVerseText = async (book: string, chapter: number, verses: string
             return `(Vista Completa - No se pudo filtrar versículo)\n\n${fullChapter.text}`;
         }
 
-        // Parse requested range "4" or "4-7"
-        if (verses.includes('-')) {
-            const [start, end] = verses.split('-').map(Number);
-            for (let i = start; i <= end; i++) {
-                if (verseMap.has(i)) {
-                    resultText += `[${i}] ${verseMap.get(i)}\n`;
+        // Parse requested range "4", "4-7", "1, 3", "1-3, 5"
+        const normalizedVerses = verses.replace(/[–—]/g, '-');
+        const targetVerses = new Set<number>();
+        const parts = normalizedVerses.split(',');
+
+        parts.forEach(part => {
+            const trimmed = part.trim();
+            if (trimmed.includes('-')) {
+                const [start, end] = trimmed.split('-').map(val => parseInt(val.trim()));
+                if (!isNaN(start) && !isNaN(end)) {
+                    // Ensure start <= end and sensible range
+                    const finalStart = Math.min(start, end);
+                    const finalEnd = Math.max(start, end);
+                    for (let i = finalStart; i <= finalEnd; i++) targetVerses.add(i);
                 }
+            } else {
+                const num = parseInt(trimmed);
+                if (!isNaN(num)) targetVerses.add(num);
             }
-        } else {
-            const vNum = parseInt(verses);
-            if (verseMap.has(vNum)) {
-                resultText = `[${vNum}] ${verseMap.get(vNum)}`;
-            }
+        });
+
+        // Sort verses to ensure correct order
+        const sortedVerses = Array.from(targetVerses).sort((a, b) => a - b);
+
+        if (sortedVerses.length === 0) {
+            return `No se encontraron versículos válidos en la referencia: ${verses}.`;
         }
+
+        sortedVerses.forEach(vNum => {
+            if (verseMap.has(vNum)) {
+                resultText += `[${vNum}] ${verseMap.get(vNum)}\n`;
+            }
+        });
 
         return resultText.trim() || `Los versículos ${verses} no se encontraron en ${resolvedBook} ${chapter}.`;
 

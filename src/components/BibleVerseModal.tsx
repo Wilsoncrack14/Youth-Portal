@@ -22,9 +22,10 @@ const BibleVerseModal: React.FC<BibleVerseModalProps> = ({ isOpen, onClose, refe
     }, [isOpen, reference]);
 
     const parseReference = (query: string) => {
-        // Parse "Book Chapter:Verse" or "Book Chapter:Verse-Verse"
-        // Examples: "Col. 4:3", "Fil. 1:7", "Hech. 16:24", "1 Cor. 15:1-4"
-        const match = query.trim().match(/^(.+?)\s+(\d+):(\d+(?:-\d+)?)$/);
+        // Parse "Book Chapter:Verses" (handles ranges, commas, etc.)
+        const normalized = query.replace(/[–—]/g, '-').trim();
+        // Capture everything after the colon as the verses part
+        const match = normalized.match(/^(.+?)\s+(\d+):(.+)$/);
 
         if (!match) return null;
 

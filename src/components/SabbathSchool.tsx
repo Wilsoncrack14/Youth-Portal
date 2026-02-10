@@ -4,6 +4,9 @@ import { supabase } from '../services/supabase';
 import { useAdmin } from '../hooks/useAdmin';
 import BibleVerseModal from './BibleVerseModal';
 import DailyLessonEditor from './DailyLessonEditor';
+import { generateQuizQuestion } from '../services/ai';
+
+import { extractHighlightedVerse } from '../services/dailyVerse';
 
 interface Quarter {
     id: string;
@@ -52,12 +55,43 @@ const DAY_NAMES: Record<string, string> = {
 const SabbathSchool: React.FC = () => {
     const { isAdmin } = useAdmin();
     const [showAdmin, setShowAdmin] = useState(false);
+
+
+
     const [quarters, setQuarters] = useState<Quarter[]>([]);
     const [selectedQuarter, setSelectedQuarter] = useState<Quarter | null>(null);
     const [weeks, setWeeks] = useState<Week[]>([]);
     const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
     const [dailyLessons, setDailyLessons] = useState<DailyLesson[]>([]);
     const [selectedDay, setSelectedDay] = useState<string>('saturday');
+
+    // Quiz & Progress State
+    const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>(new Array(7).fill(false));
+    const [completedCount, setCompletedCount] = useState(0);
+    const [showQuizModal, setShowQuizModal] = useState(false);
+    const [generatingQuiz, setGeneratingQuiz] = useState(false);
+    const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+    const [currentQuestion, setCurrentQuestion] = useState(0);
+    const [quizScore, setQuizScore] = useState(0);
+    const [quizFinished, setQuizFinished] = useState(false);
+    const [quizCompletedToday, setQuizCompletedToday] = useState(false);
+    const [todayQuizScore, setTodayQuizScore] = useState(0);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [username, setUsername] = useState<string>('');
+
+    // Current week auto-detection state
+    const [currentWeekInfo, setCurrentWeekInfo] = useState<{
+        quarterTitle: string;
+        weekNumber: number;
+        weekTitle: string;
+        weekId: string;
+        todayLessonTitle: string;
+    } | null>(null);
+
+    // Load Weekly Progress
+    useEffect(() => {
+        fetchWeeklyProgress();
+    }, []);
     const [loading, setLoading] = useState(true);
 
     const [activeTab, setActiveTab] = useState<'weeks' | 'details'>('weeks');
@@ -115,6 +149,128 @@ const SabbathSchool: React.FC = () => {
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type });
     };
+
+    // Day order matching daily_lessons.day column (Saturday-first Sabbath week)\r\n    const DAYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];\r\n\r\n    // --- HELPER FUNCTIONS FOR PROGRESS & QUIZ ---
+    const getLessonDate = (weekStartDate: string, dayName: string) => {
+        const days = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        const dayIndex = days.indexOf(dayName.toLowerCase());
+        if (dayIndex === -1) return null;
+
+        const [y, m, d] = weekStartDate.split('-').map(Number);
+        const localDate = new Date(y, m - 1, d); // Month is 0-indexed
+        localDate.setDate(localDate.getDate() + dayIndex);
+
+        // Return YYYY-MM-DD
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const fetchUserProfile = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('username, avatar_url')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profile?.username) setUsername(profile.username);
+                else setUsername(user.email?.split('@')[0] || 'Usuario');
+
+                if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+            }
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+            setUsername('Usuario');
+        }
+    };
+
+    const fetchWeeklyProgress = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !selectedWeek) return;
+
+            // Get all daily_lessons for the selected week
+            const { data: lessons } = await supabase
+                .from('daily_lessons')
+                .select('id, day')
+                .eq('week_id', selectedWeek.id);
+
+            if (!lessons || lessons.length === 0) {
+                setWeeklyProgress(new Array(7).fill(false));
+                setCompletedCount(0);
+                return;
+            }
+
+            const lessonIds = lessons.map(l => l.id);
+
+            // Get completions for these lessons
+            const { data: completions } = await supabase
+                .from('lesson_completions')
+                .select('daily_lesson_id, score')
+                .eq('user_id', user.id)
+                .in('daily_lesson_id', lessonIds);
+
+            const completedLessonIds = new Set(
+                (completions || []).filter(c => c.score >= 2).map(c => c.daily_lesson_id)
+            );
+
+            const progress = DAYS.map(dayName => {
+                const lesson = lessons.find(l => l.day === dayName);
+                return lesson ? completedLessonIds.has(lesson.id) : false;
+            });
+
+            setWeeklyProgress(progress);
+            setCompletedCount(progress.filter(Boolean).length);
+        } catch (e) {
+            console.error("Error fetching weekly progress:", e);
+        }
+    };
+
+    const checkQuizCompletion = async () => {
+        if (!selectedWeek || !selectedDay) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const lesson = getCurrentDayLesson();
+            if (!lesson) {
+                setQuizCompletedToday(false);
+                setTodayQuizScore(null);
+                return;
+            }
+
+            const { data } = await supabase
+                .from('lesson_completions')
+                .select('score, on_time')
+                .eq('user_id', user.id)
+                .eq('daily_lesson_id', lesson.id)
+                .limit(1);
+
+            if (data && data.length > 0) {
+                const s = data[0].score;
+                setTodayQuizScore(s);
+                if (s >= 2) setQuizCompletedToday(true);
+                else setQuizCompletedToday(false);
+            } else {
+                setQuizCompletedToday(false);
+                setTodayQuizScore(null);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => {
+        fetchWeeklyProgress();
+        fetchUserProfile();
+    }, [selectedWeek]);
+
+    useEffect(() => {
+        checkQuizCompletion();
+    }, [selectedWeek, selectedDay]);
 
     const handleOptimizationConfirm = (file: File) => {
         setQuarterCover(file);
@@ -188,6 +344,82 @@ const SabbathSchool: React.FC = () => {
             setLoading(false);
         }
     };
+
+    // Auto-detect the current week based on today's date
+    const fetchCurrentWeekInfo = async () => {
+        try {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+
+            // Step 1: Find the active quarter
+            const { data: quarterData } = await supabase
+                .from('quarters')
+                .select('id, title, start_date')
+                .lte('start_date', todayStr)
+                .gte('end_date', todayStr)
+                .limit(1)
+                .single();
+
+            if (!quarterData) return;
+
+            // Step 2: Calculate current week number from quarter start date
+            const [qy, qm, qd] = quarterData.start_date.split('-').map(Number);
+            const quarterStart = new Date(qy, qm - 1, qd);
+            const diffMs = today.getTime() - quarterStart.getTime();
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const calculatedWeekNumber = Math.floor(diffDays / 7) + 1;
+
+            // Step 3: Find the week with that week_number in this quarter
+            const { data: weekData } = await supabase
+                .from('weeks')
+                .select('id, week_number, title, quarter_id, start_date, end_date')
+                .eq('quarter_id', quarterData.id)
+                .eq('week_number', calculatedWeekNumber)
+                .single();
+
+            if (!weekData) return;
+
+            // Step 4: Get today's day name
+            const jsDay = today.getDay(); // 0=Sun ... 6=Sat
+            const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayDayName = dayMap[jsDay];
+
+            // Step 5: Get today's lesson title
+            const { data: lessonData } = await supabase
+                .from('daily_lessons')
+                .select('title')
+                .eq('week_id', weekData.id)
+                .eq('day', todayDayName)
+                .single();
+
+            setCurrentWeekInfo({
+                quarterTitle: quarterData.title,
+                weekNumber: weekData.week_number,
+                weekTitle: weekData.title,
+                weekId: weekData.id,
+                todayLessonTitle: lessonData?.title || 'Sin lección asignada'
+            });
+
+            // Also use this for progress if no week is selected yet
+            if (!selectedWeek) {
+                setSelectedWeek({
+                    id: weekData.id,
+                    quarter_id: weekData.quarter_id,
+                    week_number: weekData.week_number,
+                    title: weekData.title,
+                    memory_verse: '',
+                    start_date: weekData.start_date,
+                    end_date: weekData.end_date
+                } as Week);
+            }
+        } catch (error) {
+            console.error('Error fetching current week info:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchCurrentWeekInfo();
+    }, []);
 
     const loadWeeks = async (quarterId: string) => {
         try {
@@ -335,6 +567,115 @@ const SabbathSchool: React.FC = () => {
 
     const getCurrentDayLesson = () => {
         return dailyLessons.find(l => l.day === selectedDay);
+    };
+
+    const saveQuizCompletion = async (score: number) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !selectedWeek) return;
+
+            const lesson = getCurrentDayLesson();
+            if (!lesson) return;
+
+            // Determine if studying on time (today matches the lesson's calendar date)
+            const lessonDate = getLessonDate(selectedWeek.start_date, selectedDay);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isOnTime = lessonDate === todayStr;
+
+            // XP: 50 if on-time, 10 if late
+            const xpEarned = isOnTime ? 50 : 10;
+
+            // Upsert into lesson_completions (unique constraint on user_id + daily_lesson_id)
+            const { data: existing } = await supabase
+                .from('lesson_completions')
+                .select('id, score')
+                .eq('user_id', user.id)
+                .eq('daily_lesson_id', lesson.id)
+                .single();
+
+            let error;
+            if (existing) {
+                // Only update if new score is higher
+                if (score > existing.score) {
+                    const { error: err } = await supabase
+                        .from('lesson_completions')
+                        .update({ score, on_time: isOnTime, notes: `Quiz score: ${score}/3` })
+                        .eq('id', existing.id);
+                    error = err;
+                }
+            } else {
+                const { error: err } = await supabase
+                    .from('lesson_completions')
+                    .insert({
+                        user_id: user.id,
+                        daily_lesson_id: lesson.id,
+                        score,
+                        on_time: isOnTime,
+                        notes: `Quiz score: ${score}/3`
+                    });
+                error = err;
+            }
+
+            if (error) throw error;
+
+            const timeLabel = isOnTime ? '¡Puntual! ⏰' : 'Fuera de tiempo';
+            showToast(`🎉 ${timeLabel} Lección completada! (+${xpEarned} XP)`, 'success');
+            setQuizCompletedToday(true);
+            setTodayQuizScore(score);
+            fetchWeeklyProgress(); // Refresh progress
+
+            window.dispatchEvent(new CustomEvent('chapterCompleted', {
+                detail: { score, xp: xpEarned, onTime: isOnTime, reference: `Lección: ${lessonDate}` }
+            }));
+
+        } catch (e: any) { console.error(e); showToast('Error guardando progreso', 'error'); }
+    };
+
+    const startQuiz = async () => {
+        const lesson = getCurrentDayLesson();
+        if (!lesson) return;
+
+        setQuizScore(0);
+        setCurrentQuestion(0);
+        setQuizFinished(false);
+        setGeneratingQuiz(true);
+        setShowQuizModal(true);
+
+        try {
+            // Generate quiz
+            const generated = await generateQuizQuestion(lesson.content);
+            if (Array.isArray(generated) && generated.length > 0) {
+                setQuizQuestions(generated);
+            } else {
+                setQuizQuestions([
+                    { question: "¿Leíste la lección completa?", options: ["Sí", "No"], correctAnswer: 0 },
+                    { question: "¿Entendiste el mensaje principal?", options: ["Sí", "Más o menos"], correctAnswer: 0 },
+                    { question: "¿Tienes dudas?", options: ["No", "Sí"], correctAnswer: 0 }
+                ]);
+            }
+        } catch (e) { console.error(e); }
+        setGeneratingQuiz(false);
+    };
+
+    const handleAnswer = (optionIndex: number) => {
+        if (!quizQuestions[currentQuestion]) return;
+
+        // Calculate new score based on CURRENT question
+        // Note: state update is async, so we use local var or functional update
+        const isCorrect = optionIndex === quizQuestions[currentQuestion].correctAnswer;
+        const newScore = isCorrect ? quizScore + 1 : quizScore;
+        setQuizScore(newScore);
+
+        if (currentQuestion + 1 < quizQuestions.length) {
+            setCurrentQuestion(c => c + 1);
+        } else {
+            setQuizFinished(true);
+            // Final check - save for any score >= 2
+            const finalScore = newScore;
+            if (finalScore >= 2) {
+                saveQuizCompletion(finalScore);
+            }
+        }
     };
 
     if (loading) {
@@ -547,24 +888,120 @@ const SabbathSchool: React.FC = () => {
 
             <div className="max-w-7xl mx-auto">
                 {/* Header & Breadcrumbs */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                    <div className="flex-1">
-                        {renderBreadcrumbs()}
-                        <h1 className="text-3xl font-bold text-white mb-2">
-                            {!selectedQuarter ? 'Escuela Sabática' :
-                                !selectedWeek ? selectedQuarter.title :
-                                    selectedWeek.title}
-                        </h1>
+                <div className="mb-6">
+                    {renderBreadcrumbs()}
+                </div>
+
+                {/* --- HEADER REDESIGN --- */}
+                <div className="mb-8 relative group">
+                    <div className="absolute inset-0 bg-blue-600/20 blur-3xl rounded-full opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                    <div className="bg-gradient-to-r from-[#1e3a8a] to-[#172554] rounded-3xl p-8 md:p-10 relative overflow-hidden shadow-2xl border border-blue-500/10">
+                        {/* Background Decoration */}
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <span className="material-symbols-outlined text-9xl text-white transform rotate-12 translate-x-8 -translate-y-4">school</span>
+                        </div>
+
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-3 text-blue-200/90">
+                                <span className="material-symbols-outlined text-lg bg-blue-500/20 p-1.5 rounded-lg">menu_book</span>
+                                <span className="text-xs font-bold tracking-[0.2em] uppercase">Escuela Sabática</span>
+                            </div>
+
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight leading-tight">
+                                {!selectedQuarter ? 'Lección Semanal' :
+                                    !selectedWeek ? selectedQuarter.title :
+                                        selectedWeek.title}
+                            </h1>
+
+                            <p className="text-blue-100/80 text-lg md:text-xl max-w-2xl leading-relaxed font-light">
+                                Conecta con Dios a través del estudio profundo de su Palabra y el crecimiento espiritual diario.
+                            </p>
+                        </div>
+
+                        {isAdmin && (
+                            <button
+                                onClick={() => setShowAdmin(!showAdmin)}
+                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-sm transition-all shadow-lg"
+                                title="Administrar"
+                            >
+                                <span className="material-symbols-outlined">settings</span>
+                            </button>
+                        )}
                     </div>
-                    {isAdmin && (
-                        <button
-                            onClick={() => setShowAdmin(!showAdmin)}
-                            className="bg-accent-gold hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded-lg flex items-center gap-2 w-fit"
-                        >
-                            <span className="material-symbols-outlined">{showAdmin ? 'visibility_off' : 'admin_panel_settings'}</span>
-                            {showAdmin ? 'Vista Usuario' : 'Modo Admin'}
-                        </button>
-                    )}
+                </div>
+
+                {/* --- WEEKLY PROGRESS --- */}
+                {/* --- WEEKLY PROGRESS REDESIGN --- */}
+                <div className="bg-[#111218] rounded-3xl p-8 border border-white/5 shadow-2xl mb-10 relative overflow-hidden">
+                    {/* Top: Title + Current Week Info */}
+                    <div className="mb-10">
+                        <h3 className="text-white font-bold text-2xl font-serif tracking-tight">
+                            Progreso Semanal
+                        </h3>
+                        {currentWeekInfo && (
+                            <div className="mt-3 space-y-1">
+                                <div className="flex items-center gap-2 text-blue-300/80">
+                                    <span className="material-symbols-outlined text-sm">auto_stories</span>
+                                    <span className="text-sm font-medium">{currentWeekInfo.quarterTitle}</span>
+                                </div>
+                                <p className="text-white/90 text-lg font-semibold">
+                                    Semana {currentWeekInfo.weekNumber}: {currentWeekInfo.weekTitle}
+                                </p>
+                                <div className="flex items-center gap-2 text-yellow-400/90 mt-1">
+                                    <span className="material-symbols-outlined text-sm">today</span>
+                                    <span className="text-sm font-medium">Hoy: {currentWeekInfo.todayLessonTitle}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Middle: Days */}
+                    <div className="flex justify-between items-center max-w-4xl mx-auto mb-12 px-2 md:px-8">
+                        {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
+                            const todayDay = new Date().getDay();
+                            const isToday = ((index + 6) % 7) === todayDay;
+                            const isCompleted = weeklyProgress[index];
+
+                            return (
+                                <div key={index} className="flex flex-col items-center gap-5 group cursor-default transition-transform hover:-translate-y-1 duration-300">
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isToday ? 'text-white' : 'text-gray-500'}`}>{day}</span>
+                                    <div
+                                        className={`size-12 md:size-14 rounded-full flex items-center justify-center transition-all duration-500 relative
+                                           ${isToday
+                                                ? 'bg-[#4f46e5] shadow-[0_0_30px_rgba(79,70,229,0.4)] scale-110 z-10 border border-[#6366f1]'
+                                                : 'bg-[#181824] border border-white/5 group-hover:border-white/10'}
+                                           `}
+                                    >
+                                        {isToday ? (
+                                            <span className="material-symbols-outlined text-white text-2xl pl-1">play_arrow</span>
+                                        ) : isCompleted ? (
+                                            <div className="size-2.5 rounded-full bg-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.5)]"></div>
+                                        ) : (
+                                            <div className="size-2 rounded-full bg-[#27273a]"></div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Bottom: Status & Motivation */}
+                    <div className="flex justify-between items-end border-t border-white/5 pt-6">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-gray-300">
+                                {Math.round((completedCount / 7) * 100)}%
+                            </span>
+                            <span className="text-gray-500 text-sm font-bold tracking-wide">Completado</span>
+                        </div>
+
+                        <div className="text-right">
+                            {completedCount > 0 ? (
+                                <p className="text-yellow-400 font-bold text-lg tracking-wide">¡Vas bien!</p>
+                            ) : (
+                                <p className="text-gray-500 text-sm font-medium">¡Comienza hoy!</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* --- VIEW 1: QUARTER LIST --- */}
@@ -745,6 +1182,44 @@ const SabbathSchool: React.FC = () => {
                                     <p>No hay contenido disponible para este día</p>
                                 </div>
                             )}
+
+                            {/* Quiz Section */}
+                            {getCurrentDayLesson() && (
+                                <div className="mt-12 pt-8 border-t border-white/10">
+                                    <div className="bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-2xl p-8 text-center border border-white/5">
+                                        <h3 className="text-2xl font-bold text-white mb-2">¿Terminaste el estudio de hoy?</h3>
+                                        <p className="text-gray-400 mb-6">Completa un breve cuestionario para registrar tu progreso y ganar experiencia.</p>
+
+                                        {quizCompletedToday ? (
+                                            <div className="flex flex-col items-center gap-3 animate-fade-in">
+                                                <div className="size-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mb-2 border border-green-500/30">
+                                                    <span className="material-symbols-outlined text-3xl">emoji_events</span>
+                                                </div>
+                                                <h4 className="text-xl font-bold text-white">¡Lección Completada!</h4>
+                                                <p className="text-green-400 font-medium">Puntuación: {todayQuizScore}/3</p>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={startQuiz}
+                                                disabled={generatingQuiz}
+                                                className="bg-primary hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-wait"
+                                            >
+                                                {generatingQuiz ? (
+                                                    <>
+                                                        <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                                        Generando Preguntas...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="material-symbols-outlined">quiz</span>
+                                                        Completar Lección
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -826,6 +1301,88 @@ const SabbathSchool: React.FC = () => {
                 )}
 
             </div >
+
+            {/* Quiz Modal */}
+            {showQuizModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-[#1a1b26] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-scale-up">
+                        {!quizFinished ? (
+                            <div className="p-6 md:p-8">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-xl font-bold text-white">Comprobación de Lectura</h3>
+                                    <button onClick={() => setShowQuizModal(false)} className="text-gray-400 hover:text-white">
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+
+                                {generatingQuiz ? (
+                                    <div className="text-center py-12">
+                                        <div className="size-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                        <p className="text-gray-400">Analizando la lección...</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="mb-6">
+                                            <span className="text-xs font-bold text-primary tracking-wider uppercase mb-2 block">
+                                                Pregunta {currentQuestion + 1} de {quizQuestions.length}
+                                            </span>
+                                            <h4 className="text-lg text-white font-medium leading-relaxed">
+                                                {quizQuestions[currentQuestion]?.question}
+                                            </h4>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {quizQuestions[currentQuestion]?.options.map((option: string, idx: number) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleAnswer(idx)}
+                                                    className="w-full text-left p-4 rounded-xl bg-[#25263a] hover:bg-[#2f304a] border border-white/5 hover:border-primary/30 transition-all text-gray-300 hover:text-white flex items-center justify-between group"
+                                                >
+                                                    <span>{option}</span>
+                                                    <span className="material-symbols-outlined text-gray-600 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
+                                                        arrow_forward
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="p-8 text-center bg-gradient-to-b from-[#1a1b26] to-[#15161e]">
+                                <div className="mb-6 relative inline-block">
+                                    <div className="size-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto border border-green-500/30">
+                                        <span className="material-symbols-outlined text-5xl text-green-400">emoji_events</span>
+                                    </div>
+                                    {avatarUrl && (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={username}
+                                            className="absolute -bottom-2 -right-2 size-10 rounded-full border-2 border-[#1a1b26]"
+                                        />
+                                    )}
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white mb-2">¡Completado!</h3>
+                                <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2">
+                                    {quizScore}/{quizQuestions.length}
+                                </div>
+                                <p className="text-gray-400 mb-2">Has completado el estudio de hoy.</p>
+                                <p className="text-xl font-bold text-white mb-8">
+                                    Completado {completedCount} de 7
+                                </p>
+
+                                <button
+                                    onClick={() => setShowQuizModal(false)}
+                                    className="bg-white text-black font-bold py-3 px-8 rounded-xl hover:bg-gray-200 transition-colors w-full"
+                                >
+                                    Continuar
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

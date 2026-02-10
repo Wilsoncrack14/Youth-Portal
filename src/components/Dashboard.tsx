@@ -241,7 +241,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
-                  <button onClick={() => navigate('/sabbath_school')} className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-[#292938] dark:hover:bg-[#323246] text-gray-900 dark:text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-gray-200 dark:border-white/5">
+                  <button onClick={() => navigate('/sabbath-school')} className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-[#292938] dark:hover:bg-[#323246] text-gray-900 dark:text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-gray-200 dark:border-white/5">
                     Ir al Estudio
                     <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                   </button>

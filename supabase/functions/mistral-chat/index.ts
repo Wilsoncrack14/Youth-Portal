@@ -2,24 +2,23 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Lista de orígenes permitidos (configurables vía variable de entorno)
-const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',') || [
+const ALLOWED_ORIGINS = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [
     'https://youth-portal.vercel.app',
     'http://localhost:5173',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    'http://localhost:3800',
+    'http://localhost:3000'
 ];
 
-// Función para obtener headers CORS seguros
 const getCorsHeaders = (origin: string | null) => {
-    const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
-        origin === allowed || origin.endsWith('.vercel.app')
-    );
+    // Permissive CORS: Allow the requesting origin, or '*' if not present
+    const allowedOrigin = origin || '*';
 
     return {
-        'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+        'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Vary': 'Origin'
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
 };
 
