@@ -6,8 +6,17 @@ export interface UserStats {
   xp: number;
   maxXp: number;
   streak: number;
+  streakReavivados: number;
+  streakSabbathSchool: number;
   totalXp: number;
   badges: number;
+  dailyProgress: number; // 0, 1 (50%), or 2 (100%)
+}
+
+export interface DailyActivity {
+  day: string;
+  reavivados: boolean;
+  sabbath_school: boolean;
 }
 
 export interface Badge {

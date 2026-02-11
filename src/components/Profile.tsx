@@ -142,9 +142,9 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Profile Card */}
-          <div className="lg:col-span-1 bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden">
+          <div className="xl:col-span-1 bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent opacity-50"></div>
             <div className="relative z-10 mt-4 mb-4">
               <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary to-purple-500 shadow-2xl">
@@ -210,19 +210,28 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
           </div>
 
           {/* Stats Grid */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 h-full">
+          <div className="xl:col-span-2 flex flex-col gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-4 h-full">
               <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between">
                 <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500 w-fit"><span className="material-symbols-outlined text-3xl">menu_book</span></div>
                 <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalXp}</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Capítulos Leídos</p></div>
               </div>
-              <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between">
-                <div className="p-3 rounded-lg bg-orange-500/10 text-orange-500 w-fit"><span className="material-symbols-outlined text-3xl">local_fire_department</span></div>
-                <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.streak} Días</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Racha Actual</p></div>
+
+              {/* Bible Streak */}
+              <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => navigate('/progress')}>
+                <div className="p-3 rounded-lg bg-blue-500/10 text-blue-500 w-fit"><span className="material-symbols-outlined text-3xl">local_fire_department</span></div>
+                <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.streakReavivados} Días</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Racha Biblia</p></div>
               </div>
-              <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between">
-                <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500 w-fit"><span className="material-symbols-outlined text-3xl">military_tech</span></div>
-                <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">Top 5%</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Ranking Global</p></div>
+
+              {/* Lesson Streak */}
+              <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between cursor-pointer hover:border-purple-500/30 transition-colors" onClick={() => navigate('/progress')}>
+                <div className="p-3 rounded-lg bg-purple-500/10 text-purple-500 w-fit"><span className="material-symbols-outlined text-3xl">school</span></div>
+                <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.streakSabbathSchool} Días</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Racha Lección</p></div>
+              </div>
+
+              <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 flex flex-col justify-between cursor-pointer hover:border-amber-500/30 transition-colors" onClick={() => navigate('/rankings')}>
+                <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500 w-fit"><span className="material-symbols-outlined text-3xl">military_tech</span></div>
+                <div className="mt-4"><h3 className="text-3xl font-bold text-gray-900 dark:text-white">Nivel {stats.level}</h3><p className="text-gray-500 dark:text-slate-400 text-sm">Nivel Actual</p></div>
               </div>
             </div>
 

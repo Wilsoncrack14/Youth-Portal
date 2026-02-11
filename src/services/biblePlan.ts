@@ -164,12 +164,10 @@ export const fetchDailyChapter = async (
     const cacheKey = `${apiBook}-${chapter}`;
 
     if (chapterCache.has(cacheKey)) {
-        console.log(`[Cache Hit] Serving: ${resolvedBook} ${chapter}`);
         return chapterCache.get(cacheKey)!;
     }
 
     try {
-        console.log(`[Supabase Function] Fetching: ${book} (Resolved: ${resolvedBook}) ${chapter}`);
 
         // Use Supabase Edge Function to avoid CORS
         const { data, error } = await supabase.functions.invoke('bible-api', {

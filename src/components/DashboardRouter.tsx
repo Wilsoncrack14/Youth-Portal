@@ -2,17 +2,18 @@ import React from 'react';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
 import { useAdmin } from '../hooks/useAdmin';
-import { UserStats } from '../types';
+import { UserStats, DailyActivity } from '../types';
 
 interface DashboardRouterProps {
     stats: UserStats;
+    monthlyActivity: DailyActivity[];
 }
 
 /**
  * Component that routes to either AdminDashboard or regular Dashboard
  * based on user's admin status
  */
-const DashboardRouter: React.FC<DashboardRouterProps> = ({ stats }) => {
+const DashboardRouter: React.FC<DashboardRouterProps> = ({ stats, monthlyActivity }) => {
     const { isAdmin, loading } = useAdmin();
 
     if (loading) {
@@ -23,7 +24,7 @@ const DashboardRouter: React.FC<DashboardRouterProps> = ({ stats }) => {
         );
     }
 
-    return isAdmin ? <AdminDashboard /> : <Dashboard stats={stats} />;
+    return isAdmin ? <AdminDashboard /> : <Dashboard stats={stats} monthlyActivity={monthlyActivity} />;
 };
 
 export default DashboardRouter;

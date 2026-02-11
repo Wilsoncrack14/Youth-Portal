@@ -63,6 +63,21 @@ export async function generateQuizQuestion(lessonContent: string): Promise<QuizQ
 
 export async function getChapterContext(book: string, chapter: number) {
     try {
+        // Create cache key based on book and chapter
+        const cacheKey = `chapter_context_${book}_${chapter}`;
+
+        // Check if we have cached data in localStorage
+        const cachedData = localStorage.getItem(cacheKey);
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                return parsed;
+            } catch (e) {
+                localStorage.removeItem(cacheKey);
+            }
+        }
+
+        // If no cache, fetch from API
         const { data, error } = await supabase.functions.invoke('mistral-chat', {
             body: {
                 action: 'chapter_context',
@@ -74,6 +89,8 @@ export async function getChapterContext(book: string, chapter: number) {
 
         // Gemini API now returns the JSON object directly
         if (data && data.previous_summary && data.current_preview) {
+            // Save to localStorage for future use
+            localStorage.setItem(cacheKey, JSON.stringify(data));
             return data;
         } else if (data && data.error) {
             throw new Error(data.error);

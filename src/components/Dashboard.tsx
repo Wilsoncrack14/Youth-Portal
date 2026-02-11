@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { supabase } from '../services/supabase';
-import { UserStats, RankingEntry } from '../types';
+import { UserStats, RankingEntry, DailyActivity } from '../types';
 import { getCurrentQuarterlyInfo, QuarterlyInfo } from '../services/quarterly';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -10,9 +10,34 @@ import { getLevelName, getNextLevelName } from '../services/levels';
 interface DashboardProps {
   stats: UserStats;
   rankings: RankingEntry[];
+  monthlyActivity: DailyActivity[]; // Add prop type
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
+// Format Bible text with verse numbers as superscripts (same as ReadingRoom)
+const formatBibleText = (text: string) => {
+  if (!text) return null;
+
+  // Split by verse numbers like [1], [2], etc.
+  const parts = text.split(/\[(\d+)\]/);
+
+  return (
+    <span className="inline">
+      {parts.map((part, index) => {
+        if (part.match(/^\d+$/)) {
+          // It's a verse number
+          return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
+        } else if (part.trim() === "") {
+          return null;
+        } else {
+          // It's text
+          return <span key={index}>{part}</span>;
+        }
+      })}
+    </span>
+  );
+};
+
+const Dashboard: React.FC<DashboardProps> = ({ stats, monthlyActivity }) => {
   const navigate = useNavigate();
   const { profile } = useUser();
   const [dailyReading, setDailyReading] = React.useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
@@ -109,36 +134,50 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 md:max-w-md">
-            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-4 rounded-xl flex flex-col justify-between h-full cursor-pointer hover:border-primary/50 transition-all" onClick={() => navigate('/rankings')}>
-              <div className="size-10 rounded-full bg-accent-gold/10 flex items-center justify-center text-accent-gold mb-3">
-                <span className="material-symbols-outlined">local_fire_department</span>
+          <div className="flex-1 grid grid-cols-2 gap-3 md:max-w-md">
+            {/* Reavivados Streak */}
+            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-3 md:p-4 rounded-xl flex flex-col justify-between h-24 md:h-full cursor-pointer hover:border-blue-500/50 transition-all" onClick={() => navigate('/progress')}>
+              <div className="size-8 md:size-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mb-2 md:mb-3">
+                <span className="material-symbols-outlined text-[20px] md:text-[24px]">local_fire_department</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.streak}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Días de Racha</p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{stats.streakReavivados || 0}</p>
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Racha Biblia</p>
               </div>
             </div>
-            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-4 rounded-xl flex flex-col justify-between h-full hover:border-primary/50 transition-all">
-              <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <span className="material-symbols-outlined">bolt</span>
+
+            {/* Sabbath School Streak */}
+            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-3 md:p-4 rounded-xl flex flex-col justify-between h-24 md:h-full cursor-pointer hover:border-purple-500/50 transition-all" onClick={() => navigate('/progress')}>
+              <div className="size-8 md:size-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 mb-2 md:mb-3">
+                <span className="material-symbols-outlined text-[20px] md:text-[24px]">school</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{stats.streakSabbathSchool || 0}</p>
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Racha Lección</p>
+              </div>
+            </div>
+
+            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-3 md:p-4 rounded-xl flex flex-col justify-between h-24 md:h-full hover:border-primary/50 transition-all">
+              <div className="size-8 md:size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2 md:mb-3">
+                <span className="material-symbols-outlined text-[20px] md:text-[24px]">bolt</span>
+              </div>
+              <div>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
                   {stats.totalXp >= 1000
                     ? `${(stats.totalXp / 1000).toFixed(1)}k`
                     : stats.totalXp}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">XP Total</p>
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">XP Total</p>
               </div>
             </div>
-            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-4 rounded-xl flex flex-col justify-between h-full col-span-2 sm:col-span-1 cursor-pointer hover:border-primary/50 transition-all" onClick={() => navigate('/profile')}>
-              <div className="size-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 mb-3">
-                <span className="material-symbols-outlined">military_tech</span>
+
+            <div className="glass-card bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] shadow-sm dark:shadow-none p-3 md:p-4 rounded-xl flex flex-col justify-between h-24 md:h-full cursor-pointer hover:border-primary/50 transition-all" onClick={() => navigate('/profile')}>
+              <div className="size-8 md:size-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 mb-2 md:mb-3">
+                <span className="material-symbols-outlined text-[20px] md:text-[24px]">military_tech</span>
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.badges}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Medallas</p>
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{stats.badges}</p>
+                <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Medallas</p>
               </div>
             </div>
           </div>
@@ -174,10 +213,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
                 <div className="flex-1 flex flex-col justify-center py-4">
                   {dailyReading ? (
                     <>
-                      <h4 className="text-3xl font-bold text-gray-900 dark:text-white">{dailyReading.reference}</h4>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 line-clamp-3">
-                        "{dailyReading.text.substring(0, 150)}..."
-                      </p>
+                      <h4 className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {dailyReading.reference.split(' ').map((word, i) =>
+                          i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word
+                        ).join(' ')}
+                      </h4>
+                      <div className="text-gray-500 dark:text-gray-400 text-sm mt-1 line-clamp-3 leading-relaxed">
+                        {formatBibleText(dailyReading.text)}
+                      </div>
                     </>
                   ) : (
                     <div className="animate-pulse flex flex-col gap-2">
@@ -253,16 +296,19 @@ const Dashboard: React.FC<DashboardProps> = ({ stats }) => {
 
         {/* Secondary Widgets */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 glass-panel bg-white dark:bg-[#1e1e2d]/60 border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-2xl p-6 overflow-hidden">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-accent-gold">military_tech</span>
-              Logros Recientes
-            </h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
-              <BadgeItem icon="local_fire_department" name="7 Días Racha" color="from-yellow-400 to-orange-500" />
-              <BadgeItem icon="auto_stories" name="Estudiante Fiel" color="from-blue-400 to-primary" />
-              <BadgeItem icon="groups" name="Comunidad" color="from-purple-400 to-pink-500" />
-              <BadgeItem icon="lock" name="Bloqueado" color="bg-gray-200 dark:bg-[#1e1e2d]" locked />
+          <div className="lg:col-span-2 flex flex-col gap-6">
+
+            <div className="glass-panel bg-white dark:bg-[#1e1e2d]/60 border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-2xl p-6 overflow-hidden">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-accent-gold">military_tech</span>
+                Logros Recientes
+              </h3>
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+                <BadgeItem icon="local_fire_department" name="7 Días Racha" color="from-yellow-400 to-orange-500" />
+                <BadgeItem icon="auto_stories" name="Estudiante Fiel" color="from-blue-400 to-primary" />
+                <BadgeItem icon="groups" name="Comunidad" color="from-purple-400 to-pink-500" />
+                <BadgeItem icon="lock" name="Bloqueado" color="bg-gray-200 dark:bg-[#1e1e2d]" locked />
+              </div>
             </div>
           </div>
 

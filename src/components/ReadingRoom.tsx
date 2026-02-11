@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { generateQuizQuestion, getChapterContext } from '../services/ai';
-import { fetchDailyChapter, BIBLE_BOOKS_List, getTodayChapterReference } from '@/services/biblePlan';
+import { fetchDailyChapter, BIBLE_BOOKS_List, getTodayChapterReference, START_DATE } from '@/services/biblePlan';
 import { supabase } from '../services/supabase';
 import { extractHighlightedVerse } from '../services/dailyVerse';
 
@@ -46,21 +47,31 @@ const formatBibleText = (text: string) => {
   );
 };
 
+
+
 const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'hub' | 'read'>('hub');
+  const [readingData, setReadingData] = useState<{ book: string; chapter: number; date: Date } | null>(null);
+
+  // Reset reading data when going back to hub
+  const handleBack = () => {
+    setViewMode('hub');
+    setReadingData(null);
+  };
 
   return (
     <div className="animate-fade-in-up h-full">
       {viewMode === 'read' ? (
         <ReadingView
           onComplete={onComplete}
-          onBack={() => setViewMode('hub')}
+          onBack={handleBack}
+          readingData={readingData}
         />
       ) : (
         <ReavivadosHub
-          onRead={() => {
-            setViewMode('read');
-          }}
+          onRead={() => setViewMode('read')}
+          onReadData={setReadingData}
         />
       )}
     </div>
@@ -69,10 +80,12 @@ const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
 
 // --- SUB-COMPONENTS ---
 
-const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
+const ReavivadosHub: React.FC<{ onRead: () => void; onReadData: (data: any) => void }> = ({ onRead, onReadData }) => {
   const [dailyReading, setDailyReading] = useState<{ book: string; chapter: number; text: string; reference: string } | null>(null);
   const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>(new Array(7).fill(false));
   const [completedCount, setCompletedCount] = useState(0);
+  const [showHistory, setShowHistory] = useState(false); // State for full history modal
+  const [completedReadings, setCompletedReadings] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchDailyChapter().then(setDailyReading);
@@ -157,15 +170,99 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const ref = getTodayChapterReference(d);
-      readings.push({
-        ...ref,
-        displayDate: d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })
-      });
+      if (ref) {
+        const refString = `${ref.book} ${ref.chapter}`;
+        const normalizedRef = refString.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        readings.push({
+          ...ref,
+          reference: refString,
+          displayDate: d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }),
+          isCompleted: completedReadings.has(normalizedRef)
+        });
+      }
     }
     return readings;
   };
 
   const recentReadings = getRecentReadings();
+
+  const getAllPastReadings = () => {
+    const readings = [];
+    const today = new Date();
+    let current = new Date(today);
+    current.setDate(current.getDate() - 1); // Start from yesterday
+
+    while (current >= START_DATE) {
+      const ref = getTodayChapterReference(new Date(current));
+      if (ref) {
+        // Construct reference string since ref.reference might be missing
+        const refString = `${ref.book} ${ref.chapter}`;
+        const normalizedRef = refString.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        readings.push({
+          ...ref,
+          reference: refString, // Ensure reference property exists
+          date: new Date(current),
+          displayDate: current.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }),
+          fullDate: current.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          isCompleted: completedReadings.has(normalizedRef)
+        });
+      }
+      current.setDate(current.getDate() - 1);
+    }
+    return readings;
+  };
+
+
+
+  const fetchHistoryStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('daily_readings')
+        .select('reference, reflection')
+        .eq('user_id', user.id);
+
+      if (data) {
+        const completed = new Set<string>();
+        data.forEach(r => {
+          if (r.reference) {
+            const normalized = r.reference.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            completed.add(normalized);
+          }
+        });
+        console.log("Fetched history status:", completed); // Debug log
+        setCompletedReadings(completed);
+      }
+    } catch (e) {
+      console.error("Error fetching history status", e);
+    }
+  };
+
+  useEffect(() => {
+    if (showHistory) {
+      fetchHistoryStatus();
+    }
+  }, [showHistory]);
+
+  // Initial fetch to ensure recent readings have correct status
+  useEffect(() => {
+    fetchHistoryStatus();
+  }, []);
+
+  const allHistory = showHistory ? getAllPastReadings() : [];
+
+  const handleReadingClick = (reading: any) => {
+    // It's a past reading
+    onReadData({
+      book: reading.book,
+      chapter: reading.chapter,
+      date: reading.date // Pass the explicit date!
+    });
+    onRead();
+  };
 
   return (
     <div className="p-4 lg:p-10 max-w-5xl mx-auto flex flex-col gap-8">
@@ -183,7 +280,7 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
             Lectura Diaria
           </h1>
           <p className="text-lg text-blue-100 mb-8 opacity-90">
-            Conecta con Dios a través de la Biblia y la Lección de Escuela Sabática.
+            Conecta con Dios cada día a través de la lectura diaria de la Biblia.
           </p>
         </div>
       </div>
@@ -209,30 +306,32 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
             } else if (isToday) {
               status = 'active';
             } else if (isPast) {
-              status = 'missed'; // New status for clarity
+              status = 'missed';
             }
 
             return (
               <div key={i} className="flex flex-col items-center gap-3">
                 <span className="text-xs font-bold text-gray-500">{d}</span>
-                <div className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all
-                        ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black' :
-                    status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' :
-                      status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-300' :
-                        'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
-                     `}>
-                  {status === 'completed' && <span className="material-symbols-outlined">check</span>}
+                <div
+                  className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all 
+                    ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black shadow-lg shadow-yellow-500/20' :
+                      status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-110' :
+                        status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600' :
+                          'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52]'
+                    }`}
+                >
+                  {status === 'completed' && <span className="material-symbols-outlined font-bold">check</span>}
                   {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
                   {status === 'missed' && <span className="size-2 bg-red-400 rounded-full"></span>}
-                  {status === 'upcoming' && <span className="size-2 bg-gray-600 rounded-full"></span>}
+                  {status === 'upcoming' && <span className="size-2 bg-gray-500 rounded-full opacity-50"></span>}
                 </div>
               </div>
             );
           })}
         </div>
         <div className="mt-8 flex justify-between items-center text-sm text-gray-400 px-4">
-          <span>{Math.round((currentDayIndex / 7) * 100)}% Completado</span>
-          <span className="text-accent-gold font-bold">¡Vas bien!</span>
+          <span>{Math.round((completedCount / 7) * 100)}% Completado</span>
+          <span className="text-accent-gold font-bold">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
         </div>
       </div>
 
@@ -249,13 +348,16 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
             <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4 capitalize">
               {dailyReading ? dailyReading.reference : "Cargando..."}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
-              {dailyReading ? `"${dailyReading.text.substring(0, 180)}..."` : "Preparando la lectura de hoy..."}
-            </p>
+            <div className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8 line-clamp-3">
+              {dailyReading ? formatBibleText(dailyReading.text.substring(0, 200) + '...') : "Preparando la lectura de hoy..."}
+            </div>
 
             <div className="flex flex-wrap gap-4">
               <button
-                onClick={() => onRead('bible')}
+                onClick={() => {
+                  onReadData(null); // Today
+                  onRead();
+                }}
                 className="bg-accent-gold hover:bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg"
               >
                 <span className="material-symbols-outlined">auto_stories</span>
@@ -270,20 +372,117 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
       <div className="grid gap-4">
         <h3 className="font-bold text-gray-400 text-sm uppercase tracking-widest ml-1">Lecturas Recientes</h3>
         {recentReadings.map((reading, idx) => (
-          <div key={idx} className="bg-white dark:bg-[#14151f] hover:bg-gray-50 dark:hover:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group shadow-sm dark:shadow-none">
+          <div
+            key={idx}
+            onClick={() => {
+              // Determine date for thsi recent reading
+              // getRecentReadings generates them: [today-1, today-2...]
+              const d = new Date();
+              d.setDate(d.getDate() - (idx + 1));
+              const ref = getTodayChapterReference(d);
+              if (ref) {
+                // Pass the full reference object correctly
+                const refString = `${ref.book} ${ref.chapter}`;
+                handleReadingClick({ ...reading, reference: refString, date: d });
+              }
+            }}
+            className="cursor-pointer bg-white dark:bg-[#14151f] hover:bg-gray-50 dark:hover:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors group shadow-sm dark:shadow-none"
+          >
             <div className="flex items-center gap-4">
-              <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
-                <span className="material-symbols-outlined">check</span>
+              <div className={`size-10 rounded-lg flex items-center justify-center transition-colors ${reading.isCompleted
+                ? 'bg-green-500/10 text-green-500'
+                : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                }`}>
+                <span className="material-symbols-outlined">{reading.isCompleted ? 'check' : 'auto_stories'}</span>
               </div>
               <div>
                 <p className="text-gray-900 dark:text-white font-serif font-bold text-lg capitalize">{reading.book} {reading.chapter}</p>
                 <p className="text-gray-500 text-xs capitalize">{reading.displayDate}</p>
               </div>
             </div>
-            <span className="text-gray-500 text-sm font-bold opacity-50 group-hover:opacity-100 transition-opacity">+10 pts</span>
+            {reading.isCompleted ? (
+              <span className="text-xs font-bold text-green-500 bg-green-500/10 px-2 py-1 rounded">Completado</span>
+            ) : (
+              <span className="text-gray-500 text-sm font-bold opacity-50 group-hover:opacity-100 transition-opacity">+10 pts</span>
+            )}
           </div>
         ))}
       </div>
+
+      {/* SHOW ALL HISTORY BUTTON */}
+      <div className="flex justify-center -mt-4">
+        <button
+          onClick={() => setShowHistory(true)}
+          className="text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white text-sm font-bold flex items-center gap-2 transition-colors px-4 py-2"
+        >
+          <span className="material-symbols-outlined">history</span>
+          Ver historial completo
+        </button>
+      </div>
+
+      {/* HISTORY MODAL (Portal) */}
+      {showHistory && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#1e1e2d] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl relative">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between sticky top-0 bg-white dark:bg-[#1e1e2d] rounded-t-2xl z-10">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">history_edu</span>
+                Historial de Lecturas
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-4 overflow-y-auto space-y-3">
+              {allHistory.length > 0 ? (
+                allHistory.map((reading, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      handleReadingClick(reading);
+                      setShowHistory(false);
+                    }}
+                    className="cursor-pointer bg-gray-50 dark:bg-[#14151f] hover:bg-blue-50 dark:hover:bg-primary/20 hover:border-blue-200 dark:hover:border-primary/50 border border-transparent rounded-xl p-4 flex items-center justify-between transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`size-10 rounded-full flex items-center justify-center transition-colors ${reading.isCompleted
+                        ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                        : 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400 group-hover:bg-primary group-hover:text-white'
+                        }`}>
+                        <span className="material-symbols-outlined">{reading.isCompleted ? 'check' : 'auto_stories'}</span>
+                      </div>
+                      <div>
+                        <p className="text-gray-900 dark:text-white font-serif font-bold text-lg capitalize">{reading.book} {reading.chapter}</p>
+                        <p className="text-gray-500 text-xs capitalize">{reading.fullDate}</p>
+                      </div>
+                    </div>
+                    {reading.isCompleted && (
+                      <span className="text-xs font-bold bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-1 rounded">
+                        Completado
+                      </span>
+                    )}
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full mb-1">+10 XP</span>
+                      <span className="text-xs text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">Leer ahora</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-gray-500">
+                  No hay historial disponible aún.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* TIPS */}
       <div className="bg-white dark:bg-[#1a1b26] border border-orange-500/20 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-none">
@@ -311,7 +510,11 @@ interface Question {
   correctAnswer: number;
 }
 
-const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBack: () => void }> = ({ onComplete, onBack }) => {
+const ReadingView: React.FC<{
+  onComplete: (xp: number, data?: any) => void;
+  onBack: () => void;
+  readingData: { book: string; chapter: number; date: Date } | null;
+}> = ({ onComplete, onBack, readingData }) => {
   // Quiz State
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -324,6 +527,21 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
   const [username, setUsername] = useState<string>('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isTodaysChapter, setIsTodaysChapter] = useState(true); // Track if this is today's chapter
+  const [isCatchUp, setIsCatchUp] = useState(false);
+
+  // set isCatchUp if readingData.date is not today
+  useEffect(() => {
+    if (readingData?.date) {
+      const today = new Date();
+      const rDate = new Date(readingData.date);
+      const isSameDay = today.getDate() === rDate.getDate() &&
+        today.getMonth() === rDate.getMonth() &&
+        today.getFullYear() === rDate.getFullYear();
+      setIsCatchUp(!isSameDay);
+    } else {
+      setIsCatchUp(false);
+    }
+  }, [readingData]);
 
   // Reading State
   const [chapterData, setChapterData] = useState<{ reference: string; text: string; book: string; chapter: number } | null>(null);
@@ -340,9 +558,14 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     const loadContent = async () => {
       setLoading(true);
       try {
-        if (state?.book && state?.chapter) {
+        if (readingData) {
+          // Priority to explicit readingData passed from Hub (History/Catchup)
+          await loadReading(readingData.book, readingData.chapter);
+        } else if (state?.book && state?.chapter) {
+          // Routing state fallback
           await loadReading(state.book, state.chapter);
         } else {
+          // Default to today
           await loadReading();
         }
       } catch (e) { console.error(e) }
@@ -351,7 +574,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
     loadContent();
     fetchUserProfile();
-  }, [location.state]);
+  }, [location.state, readingData]);
 
   // Check quiz completion when chapter data changes
   useEffect(() => {
@@ -395,7 +618,8 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
         .select('*')
         .eq('user_id', user.id)
         .eq('reference', chapterData?.reference || '') // Must be this chapter
-        .gte('created_at', today) // Must be from today
+        // .gte('created_at', today) // Removed to check ALL history
+        .order('created_at', { ascending: false }) // Get the LATEST attempt
         .limit(1);
 
       if (!error && data && data.length > 0) {
@@ -427,25 +651,36 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
     setCurrentQuestion(0);
     setContextData(null);
 
-    let data;
-    if (book && chapter) {
-      data = await fetchDailyChapter(book, chapter);
-    } else {
-      data = await fetchDailyChapter();
+    try {
+      // Fetch chapter data and context in parallel
+      const chapterPromise = book && chapter
+        ? fetchDailyChapter(book, chapter)
+        : fetchDailyChapter();
+
+      const data = await chapterPromise;
+
+      if (data) {
+        // Start context fetch immediately while setting chapter data
+        const contextPromise = getChapterContext(data.book, data.chapter);
+
+        // Set chapter data immediately
+        setChapterData(data);
+
+        // Check if this is today's chapter
+        const todayRef = getTodayChapterReference();
+        const todayReference = `${todayRef.book} ${todayRef.chapter} `;
+        setIsTodaysChapter(data.reference === todayReference);
+
+        // Wait for context and set it (happens in parallel with render)
+        contextPromise.then(ctx => setContextData(ctx)).catch(err => {
+          console.error('Error loading context:', err);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading reading:', error);
+    } finally {
+      setLoading(false);
     }
-
-    setChapterData(data);
-
-    if (data) {
-      // Check if this is today's chapter
-      const todayReference = getTodayChapterReference();
-      setIsTodaysChapter(data.reference === todayReference);
-
-      // Fetch context in background
-      getChapterContext(data.book, data.chapter).then(ctx => setContextData(ctx));
-    }
-
-    setLoading(false);
   };
 
   const startQuiz = async () => {
@@ -498,32 +733,36 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
           detail: { score: finalScore, reference: chapterData?.reference || "" }
         }));
 
+        // Simplify: Just save the score as the "verse" (or a summary) since user requested it.
+        const summary = `Cuestionario completado: ${finalScore}/${questions.length} aciertos.`;
 
-        // Extract highlighted verse with AI and save
-        setTimeout(async () => {
-          let highlightedVerse = '';
+        // Calculate XP
+        // Re-verify catch-up status at moment of completion to ensure accuracy
+        let isCatchUpReading = false;
+        if (readingData?.date) {
+          const today = new Date();
+          const rDate = new Date(readingData.date);
+          const isSameDay = today.getDate() === rDate.getDate() &&
+            today.getMonth() === rDate.getMonth() &&
+            today.getFullYear() === rDate.getFullYear();
+          isCatchUpReading = !isSameDay;
+        }
 
-          if (chapterData?.text && chapterData?.reference) {
-            console.log('🤖 Extracting highlighted verse with AI from:', chapterData.reference);
-            try {
-              highlightedVerse = await extractHighlightedVerse(chapterData.text, chapterData.reference);
-              console.log('✅ AI extracted verse:', highlightedVerse);
-            } catch (error) {
-              console.error('❌ Error extracting verse:', error);
-            }
-          }
+        let xpEarned = 0;
+        if (isCatchUpReading) {
+          xpEarned = 10;
+        } else {
+          xpEarned = finalScore === 3 ? 50 : (finalScore === 2 ? 20 : 0);
+        }
 
-
-          // Calculate XP based on score: 2/3 = 20 XP, 3/3 = 50 XP
-          const xpEarned = finalScore === 3 ? 50 : (finalScore === 2 ? 20 : 0);
-
-          onComplete(xpEarned, {
-            type: 'quiz',
-            score: finalScore,
-            reference: chapterData?.reference || "",
-            verse: highlightedVerse || chapterData?.text?.substring(0, 200) || ""
-          });
-        }, 2000);
+        onComplete(xpEarned, {
+          type: 'quiz',
+          score: finalScore,
+          reference: chapterData?.reference || "",
+          verse: summary, // Use summary instead of AI verse
+          date: readingData?.date, // Pass the date if catchup
+          isCatchUp: isCatchUpReading
+        });
       }
     }
   };
@@ -543,51 +782,87 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
 
         {/* Reavivados Header Banner */}
-        <section className="glass-panel p-4 rounded-xl flex items-center justify-between bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/20 p-2 rounded-lg text-primary">
-              <span className="material-symbols-outlined">auto_stories</span>
-            </div>
-            <div>
-              <h2 className="text-gray-900 dark:text-white font-bold text-lg">Reavivados Por Su Palabra</h2>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Lectura diaria para tu crecimiento espiritual</p>
-            </div>
+        {/* Reavivados Header Banner */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e1e2d] to-[#16161f] border border-white/5 shadow-2xl p-6">
+          {/* Decorative Background Icon */}
+          <div className="absolute -right-6 -bottom-6 opacity-[0.03] pointer-events-none">
+            <span className="material-symbols-outlined text-[150px]">auto_stories</span>
           </div>
 
-          <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
-            <span>{new Date().toLocaleDateString()}</span>
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-600/20 p-3 rounded-xl text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-1 ring-blue-500/30">
+                <span className="material-symbols-outlined text-3xl">auto_stories</span>
+              </div>
+              <div>
+                <h2 className="text-white font-black text-xl md:text-2xl leading-tight tracking-tight">Reavivados Por Su Palabra</h2>
+                <p className="text-gray-400 text-sm font-medium mt-1">Lectura diaria para tu crecimiento espiritual</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-bold shadow-sm self-start md:self-auto">
+              <span className="material-symbols-outlined text-blue-400 text-lg">calendar_today</span>
+              <span>{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
           </div>
         </section>
 
         {/* Reading Header & Context */}
         <section className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em] capitalize">
-              {chapterData?.book} {chapterData?.chapter}
-            </h1>
-            <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: <span className="capitalize">{chapterData?.reference}</span></p>
-          </div>
-
-          {/* AI Context Card */}
-          {contextData && (
-            <div className="grid md:grid-cols-2 gap-4 animate-fade-in">
-              <div className="bg-gray-100 dark:bg-[#1c1c26] border border-gray-200 dark:border-[#292938] p-4 rounded-lg relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <span className="material-symbols-outlined text-4xl text-gray-500">history</span>
-                </div>
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">En el capítulo anterior</h4>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">"{contextData.previous_summary}"</p>
-              </div>
-              <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <span className="material-symbols-outlined text-4xl text-primary">light_mode</span>
-                </div>
-                <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Estudio de hoy</h4>
-                <p className="text-sm text-gray-900 dark:text-white leading-relaxed font-medium">"{contextData.current_preview}"</p>
-              </div>
+          {loading || !chapterData ? (
+            // Skeleton Loader for Header
+            <div className="flex flex-col gap-2 animate-pulse">
+              <div className="h-12 md:h-14 w-72 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
+              <div className="h-5 w-64 bg-gray-200 dark:bg-gray-600 rounded"></div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em] capitalize">
+                {chapterData?.book} {chapterData?.chapter}
+              </h1>
+              <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: <span className="capitalize">{chapterData?.reference}</span></p>
             </div>
           )}
+
+          {/* AI Context Card */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {contextData ? (
+              <>
+                <div className="bg-gray-100 dark:bg-[#1c1c26] border border-gray-200 dark:border-[#292938] p-4 rounded-lg relative overflow-hidden group animate-fade-in">
+                  <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <span className="material-symbols-outlined text-4xl text-gray-500">history</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">En el capítulo anterior</h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">"{contextData.previous_summary}"</p>
+                </div>
+                <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg relative overflow-hidden group animate-fade-in">
+                  <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <span className="material-symbols-outlined text-4xl text-primary">light_mode</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Estudio de hoy</h4>
+                  <p className="text-sm text-gray-900 dark:text-white leading-relaxed font-medium">"{contextData.current_preview}"</p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Skeleton Loaders */}
+                <div className="bg-gray-100 dark:bg-[#1c1c26] border border-gray-200 dark:border-[#292938] p-4 rounded-lg animate-pulse">
+                  <div className="h-3 w-32 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-5/6"></div>
+                  </div>
+                </div>
+                <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg animate-pulse">
+                  <div className="h-3 w-24 bg-primary/30 rounded mb-2"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-primary/30 rounded w-full"></div>
+                    <div className="h-4 bg-primary/30 rounded w-4/5"></div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
         {/* Text Body */}
@@ -597,9 +872,22 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
           </div>
 
           <article className="p-8 md:p-12">
-            <div className="font-serif text-gray-800 dark:text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
-              {chapterData?.text ? formatBibleText(chapterData.text) : "Cargando..."}
-            </div>
+            {loading || !chapterData?.text ? (
+              <div className="max-w-prose mx-auto space-y-6 animate-pulse">{/* Skeleton Loader for Bible Text */}
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-11/12"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-4/5"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="font-serif text-gray-800 dark:text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
+                {formatBibleText(chapterData.text)}
+              </div>
+            )}
           </article>
         </section>
 
@@ -691,7 +979,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
                             'Buen intento. Sigue leyendo 📖'}
                       </p>
 
-                      {todayQuizScore < 3 && (
+                      {todayQuizScore < 2 && (
                         <button
                           onClick={() => {
                             setQuizCompletedToday(false);
@@ -704,12 +992,21 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
                           className="mt-4 w-full bg-primary hover:bg-blue-600 px-4 py-2 rounded-lg text-white font-medium transition-all flex items-center justify-center gap-2"
                         >
                           <span className="material-symbols-outlined text-sm">refresh</span>
-                          Resolver Nuevamente
+                          Intentar Nuevamente
                         </button>
                       )}
                     </div>
 
-                    <p className="text-gray-500 text-sm">Vuelve mañana para un nuevo desafío</p>
+                    <div className="flex flex-col gap-3 mt-4">
+                      <p className="text-gray-500 text-sm">Vuelve mañana para un nuevo desafío</p>
+                      <button
+                        onClick={() => navigate('/rankings')}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-lg w-full"
+                      >
+                        <span className="material-symbols-outlined">trophy</span>
+                        Ir al Salón de Talentos
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-gray-400 mt-4">Ya completaste el cuestionario de hoy. Vuelve mañana para más.</p>
@@ -747,8 +1044,18 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
               </p>
 
               {score >= 2 ? (
-                <div className="p-4 bg-green-100 dark:bg-green-500/20 border border-green-200 dark:border-green-500/30 rounded-lg text-green-800 dark:text-green-300 mb-4 inline-block font-bold">
-                  ¡Excelente trabajo! +50 XP han sido añadidos a tu perfil.
+                <div className="flex flex-col gap-4">
+                  <div className="p-4 bg-green-100 dark:bg-green-500/20 border border-green-200 dark:border-green-500/30 rounded-lg text-green-800 dark:text-green-300 mb-2 inline-block font-bold">
+                    ¡Excelente trabajo! +{isCatchUp ? 10 : (score === 3 ? 50 : 20)} XP han sido añadidos a tu perfil.
+                  </div>
+
+                  <button
+                    onClick={() => navigate('/rankings')}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-lg mx-auto mb-2"
+                  >
+                    <span className="material-symbols-outlined">trophy</span>
+                    Ir al Salón de Talentos
+                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 animate-shake">

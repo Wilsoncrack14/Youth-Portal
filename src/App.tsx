@@ -18,6 +18,7 @@ const Onboarding = React.lazy(() => import('./components/Onboarding'));
 const SabbathSchool = React.lazy(() => import('./components/SabbathSchool'));
 const SabbathSchoolAdmin = React.lazy(() => import('./components/SabbathSchoolAdmin'));
 const Admin = React.lazy(() => import('./components/Admin'));
+const UserProgress = React.lazy(() => import('./components/UserProgress'));
 import { supabase } from './services/supabase';
 import { getCurrentUser } from './services/auth';
 import { User } from '@supabase/supabase-js';
@@ -49,36 +50,49 @@ const App: React.FC = () => {
   }, []);
 
   /* New Hook Implementation */
-  const { userStats, badges, profile, isLoading: userDataLoading, invalidateData } = useUserData(session?.id);
+  const { userStats, badges, profile, monthlyActivity, isLoading: userDataLoading, invalidateData } = useUserData(session?.id);
   const loading = authLoading || (!!session && userDataLoading);
 
   /* Safe XP Update via RPC */
-  const handleStudyComplete = async (xp: number, data?: { type?: 'quiz'; score?: number; reflection?: string; verse?: string; reference?: string }) => {
+  const handleStudyComplete = async (xp: number, data?: { type?: 'quiz'; score?: number; reflection?: string; verse?: string; reference?: string; date?: Date; isCatchUp?: boolean }) => {
     if (!session) return;
 
     // Only process quiz data with RPC
     if (data?.type === 'quiz' && data.score !== undefined && data.reference) {
       try {
-        const { error } = await supabase.rpc('submit_quiz_activity', {
-          p_reference: data.reference,
-          p_score: data.score,
-          p_max_score: 3,
-          p_reflection: data.reflection || `Quiz completado - score: ${data.score}/3`
-        });
+        if (data.isCatchUp && data.date) {
+          // New logic: Catch-up reading
+          const { error } = await supabase.rpc('submit_catchup_reading', {
+            p_reference: data.reference,
+            p_target_date: data.date.toISOString(),
+            p_verse: data.verse || 'Versículo no disponible',
+            p_reflection: data.reflection || `Lectura completada (Recuperación) - score: ${data.score}/3`
+          });
+          if (error) console.error("Error submitting catch-up (RPC):", error);
+          else await invalidateData();
 
-        if (error) {
-          console.error("Error submitting quiz activity (RPC):", error);
         } else {
-          // Success - Refresh UI
-          await invalidateData();
+          // Standard logic: Today's reading
+          const { error } = await supabase.rpc('submit_quiz_activity', {
+            p_reference: data.reference,
+            p_score: data.score,
+            p_max_score: 3,
+            p_reflection: data.reflection || `Quiz completado - score: ${data.score}/3`,
+            p_verse: data.verse || 'Versículo no disponible'
+          });
+
+          if (error) {
+            console.error("Error submitting quiz activity (RPC):", error);
+          } else {
+            // Success - Refresh UI
+            await invalidateData();
+          }
         }
       } catch (e) {
         console.error("Error in handleStudyComplete:", e);
       }
     } else {
       // Fallback for non-quiz completions (if any)
-      // Or ignore? This app seems centered on quiz completions for XP.
-      // Let's just log.
       console.log("Skipping XP update for non-quiz activity or missing data.");
     }
   };
@@ -115,7 +129,7 @@ const App: React.FC = () => {
                         ) : (
                           <Layout userStats={userStats}>
                             <Routes>
-                              <Route path="/" element={<DashboardRouter stats={userStats} />} />
+                              <Route path="/" element={<DashboardRouter stats={userStats} monthlyActivity={monthlyActivity} />} />
                               <Route path="/studies" element={<Studies />} />
                               <Route path="/rankings" element={<Rankings />} />
                               <Route path="/community" element={<Community />} />
@@ -125,6 +139,7 @@ const App: React.FC = () => {
                               <Route path="/settings" element={<Settings />} />
                               <Route path="/sabbath-school" element={<SabbathSchool />} />
                               <Route path="/sabbath-school/admin" element={<SabbathSchoolAdmin />} />
+                              <Route path="/progress" element={<UserProgress />} />
                               <Route path="/admin" element={<Admin />} />
                               <Route path="/maintenance" element={<Maintenance />} />
                               <Route path="*" element={<Navigate to="/dashboard" replace />} />

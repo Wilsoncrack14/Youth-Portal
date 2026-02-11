@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../services/supabase';
-import { UserStats, Badge } from '../types';
+import { UserStats, Badge, DailyActivity } from '../types';
 
 // Add UserProfile interface (should ideally be shared in types.ts but defining here for now to match)
 export interface UserProfile {
@@ -21,6 +21,7 @@ interface UseUserDataResult {
     userStats: UserStats;
     badges: Badge[];
     profile: UserProfile | null;
+    monthlyActivity: DailyActivity[];
     isLoading: boolean;
     error: unknown;
     refetch: () => void;
@@ -32,8 +33,11 @@ const DEFAULT_STATS: UserStats = {
     xp: 0,
     maxXp: 100,
     streak: 0,
+    streakReavivados: 0,
+    streakSabbathSchool: 0,
     totalXp: 0,
     badges: 0,
+    dailyProgress: 0,
 };
 
 export const useUserData = (userId: string | undefined, userEmail?: string): UseUserDataResult => {
@@ -60,16 +64,26 @@ export const useUserData = (userId: string | undefined, userEmail?: string): Use
                 thisWeekResponse,
                 allReadingsResponse,
                 streakResponse,
+                streakReavivadosResponse,
+                streakSabbathSchoolResponse,
                 allBadgesResponse,
-                userBadgesResponse
+                userBadgesResponse,
+                monthlyActivityResponse
             ] = await Promise.all([
                 supabase.from('profiles').select('*').eq('id', userId).single(),
                 supabase.rpc('calculate_weeks_completed', { user_id_param: userId }),
                 supabase.from('daily_readings').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', startOfWeek.toISOString()),
                 supabase.from('daily_readings').select('id', { count: 'exact', head: true }).eq('user_id', userId),
                 supabase.rpc('calculate_streak', { user_id_param: userId }),
+                supabase.rpc('calculate_streak_reavivados', { user_id_param: userId }),
+                supabase.rpc('calculate_streak_sabbath_school', { user_id_param: userId }),
                 supabase.from('badges').select('*'),
-                supabase.from('user_badges').select('*').eq('user_id', userId)
+                supabase.from('user_badges').select('*').eq('user_id', userId),
+                supabase.rpc('get_monthly_activity', {
+                    user_id_param: userId,
+                    month_param: (new Date()).getMonth() + 1,
+                    year_param: (new Date()).getFullYear()
+                })
             ]);
 
             // Profile (Create if missing pattern handles PGRST116)
@@ -87,14 +101,37 @@ export const useUserData = (userId: string | undefined, userEmail?: string): Use
             const thisWeekCount = thisWeekResponse.count || 0;
             const totalChaptersRead = allReadingsResponse.count || 0;
             const currentStreak = streakResponse.data || 0;
+            const streakReavivados = streakReavivadosResponse.data || 0;
+            const streakSabbathSchool = streakSabbathSchoolResponse.data || 0;
+            const monthlyActivity = monthlyActivityResponse.data || [];
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // Check specific daily completion for circle progress
+            const { count: readingsToday } = await supabase
+                .from('daily_readings')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .gte('created_at', `${todayStr}T00:00:00`);
+
+            const { count: lessonsToday } = await supabase
+                .from('lesson_completions')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .gte('completed_at', `${todayStr}T00:00:00`);
+
+            const dailyProgress = (readingsToday ? 1 : 0) + (lessonsToday ? 1 : 0);
 
             const userStats: UserStats = {
                 level: weeksCompleted + 1,
                 xp: thisWeekCount * 50,
                 maxXp: 350,
                 streak: currentStreak,
+                streakReavivados,
+                streakSabbathSchool,
                 totalXp: totalChaptersRead,
-                badges: profileData?.badges_count || 0
+                badges: profileData?.badges_count || 0,
+                dailyProgress
             };
 
             const allBadges = allBadgesResponse.data || [];
@@ -121,7 +158,7 @@ export const useUserData = (userId: string | undefined, userEmail?: string): Use
                 email: userEmail || '' // Start with passed email, eventually logic could fetch if needed
             } : null;
 
-            return { userStats, badges, profile: fullProfile };
+            return { userStats, badges, profile: fullProfile, monthlyActivity };
         }
     });
 
@@ -133,6 +170,7 @@ export const useUserData = (userId: string | undefined, userEmail?: string): Use
         userStats: data?.userStats || DEFAULT_STATS,
         badges: data?.badges || [],
         profile: data?.profile || null,
+        monthlyActivity: data?.monthlyActivity || [],
         isLoading: enabled ? isLoading : false,
         error,
         refetch,

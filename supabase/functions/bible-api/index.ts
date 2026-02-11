@@ -110,7 +110,7 @@ serve(async (req) => {
             text: v.text
         })) : [];
 
-        const fullText = formattedVerses.map(v => `${v.number} ${v.text}`).join(' ');
+        const fullText = formattedVerses.map(v => `[${v.number}] ${v.text}`).join(' ');
 
         const result = {
             book: book, // Devolver el nombre original en español

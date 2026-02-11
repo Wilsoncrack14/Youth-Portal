@@ -159,7 +159,10 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
               <span className="material-symbols-outlined">notifications</span>
               <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full"></span>
             </button>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-[#292938] border border-gray-200 dark:border-[#3d3d52] shadow-sm dark:shadow-none">
+            <div
+              onClick={() => handleNavigation('/rankings')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-[#292938] border border-gray-200 dark:border-[#3d3d52] shadow-sm dark:shadow-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#323242] transition-colors"
+            >
               <span className="text-accent-gold material-symbols-outlined text-[18px]">local_fire_department</span>
               <span className="text-sm font-bold text-gray-900 dark:text-white">{userStats.streak}</span>
             </div>
