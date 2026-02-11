@@ -14,6 +14,38 @@ const getTodayDayName = () => {
   return days[new Date().getDay()];
 };
 
+const formatBibleText = (text: string) => {
+  if (!text) return null;
+
+  // Split by verse numbers like [1], [2], etc.
+  // The regex captures the number so we can use it in the map
+  const parts = text.split(/\[(\d+)\]/);
+
+  return (
+    <div className="space-y-4">
+      {parts.map((part, index) => {
+        // If the part is a number (from the capture group), render it as superscript
+        // Note: split with capture group returns: [text, capture, text, capture...]
+        // So odd indices are the captured numbers, even indices are the text content.
+
+        // HOWEVER, we want to group the number with its following text.
+        // Let's reorganize.
+
+        // Actually, a simpler way for React rendering:
+        if (part.match(/^\d+$/)) {
+          // It's a verse number
+          return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
+        } else if (part.trim() === "") {
+          return null;
+        } else {
+          // It's text
+          return <span key={index} className="leading-relaxed hover:bg-gray-100 dark:hover:bg-white/5 transition-colors rounded px-0.5">{part}</span>;
+        }
+      })}
+    </div>
+  );
+};
+
 const ReadingRoom: React.FC<ReadingRoomProps> = ({ onComplete }) => {
   const [viewMode, setViewMode] = useState<'hub' | 'read'>('hub');
 
@@ -214,7 +246,7 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
 
           <div className="max-w-2xl relative z-10 animate-fade-in">
             <span className="text-gray-500 font-bold text-sm mb-2 block">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-            <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4">
+            <h2 className="text-4xl font-serif font-black text-gray-900 dark:text-white mb-4 capitalize">
               {dailyReading ? dailyReading.reference : "Cargando..."}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-8">
@@ -244,7 +276,7 @@ const ReavivadosHub: React.FC<{ onRead: () => void }> = ({ onRead }) => {
                 <span className="material-symbols-outlined">check</span>
               </div>
               <div>
-                <p className="text-gray-900 dark:text-white font-serif font-bold text-lg">{reading.book} {reading.chapter}</p>
+                <p className="text-gray-900 dark:text-white font-serif font-bold text-lg capitalize">{reading.book} {reading.chapter}</p>
                 <p className="text-gray-500 text-xs capitalize">{reading.displayDate}</p>
               </div>
             </div>
@@ -531,10 +563,10 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
         {/* Reading Header & Context */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em]">
+            <h1 className="text-gray-900 dark:text-white text-4xl md:text-5xl font-black leading-tight tracking-[-0.02em] capitalize">
               {chapterData?.book} {chapterData?.chapter}
             </h1>
-            <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: {chapterData?.reference}</p>
+            <p className="text-gray-500 dark:text-[#9e9fb7] text-lg font-normal">Lectura Principal: <span className="capitalize">{chapterData?.reference}</span></p>
           </div>
 
           {/* AI Context Card */}
@@ -566,7 +598,7 @@ const ReadingView: React.FC<{ onComplete: (xp: number, data?: any) => void, onBa
 
           <article className="p-8 md:p-12">
             <div className="font-serif text-gray-800 dark:text-gray-300 text-lg md:text-xl leading-8 md:leading-9 space-y-8 max-w-prose mx-auto whitespace-pre-wrap">
-              {chapterData?.text}
+              {chapterData?.text ? formatBibleText(chapterData.text) : "Cargando..."}
             </div>
           </article>
         </section>
