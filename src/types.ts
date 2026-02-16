@@ -27,6 +27,7 @@ export interface Badge {
   date?: string;
   progress?: number;
   total?: number;
+  description?: string;
 }
 
 export interface RankingEntry {
@@ -67,6 +68,17 @@ export interface PrayerComment {
   content: string;
   created_at: string;
   profiles?: UserProfile;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'birthday' | 'system';
+  is_read: boolean;
+  created_at: string;
+  metadata?: any;
 }
 
 // Add UserProfile here if not already imported or defined, but reuse logic if needed.

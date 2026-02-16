@@ -40,6 +40,17 @@ const DEFAULT_STATS: UserStats = {
     dailyProgress: 0,
 };
 
+const BADGE_DESCRIPTIONS: Record<string, string> = {
+    "Primeros Pasos": "Completa tu primer capítulo o lección para iniciar tu viaje.",
+    "Lector Diario": "Mantén una racha de lectura de 3 días consecutivos.",
+    "Guerrero de Oración": "Completa 30 días de devoción y oración continua.",
+    "Teólogo Experto": "Completa 10 lecciones de Escuela Sabática y demuestra tu conocimiento.",
+    "Adorador": "Lee 150 capítulos de la Biblia.",
+    "Nuevo Testamento": "Completa la lectura de los 260 capítulos del Nuevo Testamento.",
+    "Mes Dedicado": "Mantén tu racha de actividad por 30 días seguidos.",
+    "Pentateuco": "Completa los primeros 5 libros de la Biblia."
+};
+
 export const useUserData = (userId: string | undefined, userEmail?: string): UseUserDataResult => {
     const queryClient = useQueryClient();
     const enabled = !!userId;
@@ -146,7 +157,8 @@ export const useUserData = (userId: string | undefined, userEmail?: string): Use
                     unlocked: !!userBadge?.unlocked,
                     date: userBadge?.unlocked_at ? new Date(userBadge.unlocked_at).toLocaleDateString() : undefined,
                     progress: userBadge?.progress || 0,
-                    total: b.total_required
+                    total: b.total_required,
+                    description: BADGE_DESCRIPTIONS[b.name] || "Sigue avanzando para desbloquear este logro."
                 };
             });
 

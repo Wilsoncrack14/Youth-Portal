@@ -1,0 +1,5 @@
+[functions.daily-reminder]
+verify_jwt = false
+
+# Schedule removed to debug deployment error
+schedule = "0 0 * * *"

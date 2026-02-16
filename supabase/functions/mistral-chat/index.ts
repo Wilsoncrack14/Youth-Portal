@@ -75,6 +75,8 @@ serve(async (req) => {
 
         // ✅ Usuario autenticado, continuar con la lógica normal
         const { action, payload, messages } = await req.json();
+
+        // ✅ Continuar con la lógica normal
         const apiKey = Deno.env.get('GROQ_API_KEY');
 
         if (!apiKey) {
@@ -176,10 +178,40 @@ serve(async (req) => {
                 2. "current_preview": Frase enganchadora sobre este capítulo.
                 
                 Responde SOLO JSON con estos campos exactos:
+                Responde SOLO JSON con estos campos exactos:
                 {
                     "previous_summary": "...",
                     "current_preview": "..."
                 }`;
+                break;
+
+            case 'sabbath_context':
+                const { previous_content, current_content } = payload;
+                systemContent = "Eres un maestro de Escuela Sabática adventista. Analizas la conexión espiritual entre lecciones diarias.";
+                userContent = `Analiza el contenido de ayer y hoy:
+                
+                AYER: "${(previous_content || '').substring(0, 5000)}..."
+                HOY: "${(current_content || '').substring(0, 10000)}..."
+
+                Genera un JSON con:
+                1. "previous_impact": Resumen de lo aprendido ayer. DEBE comenzar con "Ayer aprendimos que..." (máx 30 palabras).
+                2. "current_hook": Gancho para el estudio de hoy. DEBE comenzar con "Hoy aprenderemos que..." (máx 30 palabras).
+
+                Responde SOLO JSON:
+                {
+                    "previous_impact": "Ayer aprendimos que...",
+                    "current_hook": "Hoy aprenderemos que..."
+                }`;
+                break;
+
+            case 'summarize_lesson':
+                systemContent = "Eres un maestro de Escuela Sabática adventista. Tu objetivo es resumir lecciones bíblicas de manera concisa y espiritual. Responde SIEMPRE en JSON válido.";
+                userContent = `Analiza el siguiente contenido de la lección de Escuela Sabática:
+                "${(typeof payload === 'string' ? payload : '').substring(0, 15000)}..."
+                
+                Genera un resumen de 2 oraciones (máximo 40 palabras) que capture la esencia espiritual principal.
+                Responde SOLAMENTE con este formato JSON:
+                { "summary": "Texto del resumen aquí..." }`;
                 break;
 
             default:

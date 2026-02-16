@@ -1,0 +1,6 @@
+[functions.daily-reminder]
+verify_jwt = false
+# schedule = "0 0 * * *" 
+
+[functions.process-weekly-lesson]
+verify_jwt = true

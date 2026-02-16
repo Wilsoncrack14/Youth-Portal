@@ -106,3 +106,62 @@ export async function getChapterContext(book: string, chapter: number) {
         };
     }
 }
+// NEW: Generate a short summary for a lesson
+export async function generateLessonSummary(lessonContent: string): Promise<string> {
+    try {
+        const { data, error } = await supabase.functions.invoke('mistral-chat', {
+            body: {
+                action: 'summarize_lesson',
+                payload: lessonContent
+            }
+        });
+
+        if (error) throw error;
+
+        if (data && data.summary) {
+            return data.summary;
+        } else if (data && data.error) {
+            throw new Error(data.error);
+        } else {
+            // Fallback if structure is unexpected but has text
+            return "Resumen no disponible por el momento.";
+        }
+
+    } catch (error) {
+        console.error('Error generating summary:', error);
+        return "Conecta con Dios a través del estudio de su Palabra."; // Generic fallback
+    }
+}
+// NEW: Get context for Sabbath School (Yesterday vs Today)
+export async function getSabbathContext(currentContent: string, previousContent: string | null) {
+    try {
+        const { data, error } = await supabase.functions.invoke('mistral-chat', {
+            body: {
+                action: 'sabbath_context',
+                payload: {
+                    current_content: currentContent,
+                    previous_content: previousContent || ""
+                }
+            }
+        });
+
+        if (error) throw error;
+
+        if (data && data.previous_impact && data.current_hook) {
+            return data;
+        } else if (data && data.error) {
+            throw new Error(data.error);
+        } else {
+            return {
+                previous_impact: "Repasando la lección anterior...",
+                current_hook: "Descubre la enseñanza para hoy."
+            };
+        }
+    } catch (error) {
+        console.error('Error fetching Sabbath context:', error);
+        return {
+            previous_impact: "Conecta con lo aprendido ayer.",
+            current_hook: "Profundiza en la Palabra hoy."
+        };
+    }
+}

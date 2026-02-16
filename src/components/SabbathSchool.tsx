@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ImageOptimizerModal from './ImageOptimizerModal';
 import { supabase } from '../services/supabase';
-import { useAdmin } from '../hooks/useAdmin';
+// import { useAdmin } from '../hooks/useAdmin'; // Removed
+import { useNavigate } from 'react-router-dom'; // keeping just in case, though not used in reader?
 import BibleVerseModal from './BibleVerseModal';
-import DailyLessonEditor from './DailyLessonEditor';
-import { generateQuizQuestion } from '../services/ai';
+// import DailyLessonEditor from './DailyLessonEditor'; // Removed
+import { generateQuizQuestion, generateLessonSummary, getSabbathContext } from '../services/ai';
 
 import { extractHighlightedVerse } from '../services/dailyVerse';
 
@@ -39,6 +40,7 @@ interface DailyLesson {
     content: string;
     bible_verses: string[];
     reflection_questions: string[];
+    summary?: string;
 }
 
 const DAYS = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -53,8 +55,8 @@ const DAY_NAMES: Record<string, string> = {
 };
 
 const SabbathSchool: React.FC = () => {
-    const { isAdmin } = useAdmin();
-    const [showAdmin, setShowAdmin] = useState(false);
+    // const { isAdmin } = useAdmin(); // Removed
+    // const [showAdmin, setShowAdmin] = useState(false); // Removed
 
 
 
@@ -64,6 +66,7 @@ const SabbathSchool: React.FC = () => {
     const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
     const [dailyLessons, setDailyLessons] = useState<DailyLesson[]>([]);
     const [selectedDay, setSelectedDay] = useState<string>('saturday');
+    const [weeksProgress, setWeeksProgress] = useState<Record<string, { total: number; completed: number }>>({});
 
     // Quiz & Progress State
     const [weeklyProgress, setWeeklyProgress] = useState<boolean[]>(new Array(7).fill(false));
@@ -88,6 +91,11 @@ const SabbathSchool: React.FC = () => {
         todayLessonTitle: string;
     } | null>(null);
 
+    // AI Summaries State
+    const [currentSummary, setCurrentSummary] = useState<string | null>(null);
+    const [previousSummary, setPreviousSummary] = useState<string | null>(null);
+    const [loadingSummaries, setLoadingSummaries] = useState(false);
+
     // Load Weekly Progress
     useEffect(() => {
         fetchWeeklyProgress();
@@ -107,37 +115,15 @@ const SabbathSchool: React.FC = () => {
     const [verseModalOpen, setVerseModalOpen] = useState(false);
     const [selectedVerseRef, setSelectedVerseRef] = useState<string | null>(null);
 
-    // Admin Editing State
-    const [adminEditingLesson, setAdminEditingLesson] = useState<DailyLesson | null>(null);
+    // Admin Editing State - REMOVED
+    // const [adminEditingLesson, setAdminEditingLesson] = useState<DailyLesson | null>(null);
 
     const handleVerseClick = (ref: string) => {
         setSelectedVerseRef(ref);
         setVerseModalOpen(true);
     };
 
-    const handleAdminSaveLesson = async (updatedData: any) => {
-        try {
-            const { error } = await supabase
-                .from('daily_lessons')
-                .update({
-                    title: updatedData.title,
-                    content: updatedData.content,
-                    bible_verses: updatedData.bible_verses,
-                    reflection_questions: updatedData.reflection_questions
-                })
-                .eq('id', updatedData.id);
-
-            if (error) throw error;
-
-            showToast('✅ Lección actualizada correctamente', 'success');
-            setAdminEditingLesson(null);
-
-            // Refresh local state without full reload
-            setDailyLessons(lessons => lessons.map(l => l.id === updatedData.id ? { ...l, ...updatedData } : l));
-        } catch (error: any) {
-            showToast(`❌ Error al guardar: ${error.message}`, 'error');
-        }
-    };
+    // handleAdminSaveLesson REMOVED
 
     useEffect(() => {
         if (toast) {
@@ -278,49 +264,12 @@ const SabbathSchool: React.FC = () => {
         setFileToOptimize(null);
     };
 
-    // Admin form state
-    const [newQuarter, setNewQuarter] = useState({
-        year: new Date().getFullYear(),
-        quarter: 1,
-        title: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        introduction: ''
-    });
+    // Admin form state - REMOVED
     const [quarterCover, setQuarterCover] = useState<File | null>(null);
 
     useEffect(() => {
         loadQuarters();
     }, []);
-
-    useEffect(() => {
-        if (selectedQuarter) {
-            loadWeeks(selectedQuarter.id);
-            // Populate form for editing
-            setNewQuarter({
-                year: selectedQuarter.year,
-                quarter: selectedQuarter.quarter,
-                title: selectedQuarter.title,
-                description: selectedQuarter.description,
-                start_date: selectedQuarter.start_date,
-                end_date: selectedQuarter.end_date,
-                introduction: selectedQuarter.introduction || ''
-            });
-            setActiveTab('weeks');
-        } else {
-            // Reset form for creation
-            setNewQuarter({
-                year: new Date().getFullYear(),
-                quarter: 1,
-                title: '',
-                description: '',
-                start_date: '',
-                end_date: '',
-                introduction: ''
-            });
-        }
-    }, [selectedQuarter]);
 
     useEffect(() => {
         if (selectedWeek) {
@@ -354,7 +303,7 @@ const SabbathSchool: React.FC = () => {
             // Step 1: Find the active quarter
             const { data: quarterData } = await supabase
                 .from('quarters')
-                .select('id, title, start_date')
+                .select('*')
                 .lte('start_date', todayStr)
                 .gte('end_date', todayStr)
                 .limit(1)
@@ -411,6 +360,13 @@ const SabbathSchool: React.FC = () => {
                     start_date: weekData.start_date,
                     end_date: weekData.end_date
                 } as Week);
+
+                // NEW: Also select the quarter and the current day to show the lesson immediately
+                setSelectedQuarter(quarterData);
+                setSelectedDay(todayDayName);
+
+                // ALSO: Load the weeks for this quarter so if user navigates back, they are there
+                loadWeeks(quarterData.id);
             }
         } catch (error) {
             console.error('Error fetching current week info:', error);
@@ -430,9 +386,52 @@ const SabbathSchool: React.FC = () => {
                 .order('week_number', { ascending: true });
 
             if (error) throw error;
-            setWeeks(data || []);
+            if (data) {
+                setWeeks(data);
+                // Fetch progress for these weeks
+                fetchWeeksProgress(data.map(w => w.id));
+            }
         } catch (error) {
             console.error('Error loading weeks:', error);
+        }
+    };
+
+    const fetchWeeksProgress = async (weekIds: string[]) => {
+        if (!weekIds.length) return;
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // 1. Get all daily lessons for these weeks
+            const { data: lessons } = await supabase
+                .from('daily_lessons')
+                .select('id, week_id')
+                .in('week_id', weekIds);
+
+            if (!lessons) return;
+            const lessonIds = lessons.map(l => l.id);
+
+            // 2. Get completions for these lessons
+            const { data: completions } = await supabase
+                .from('lesson_completions')
+                .select('daily_lesson_id')
+                .eq('user_id', user.id)
+                .in('daily_lesson_id', lessonIds);
+
+            const completedSet = new Set(completions?.map(c => c.daily_lesson_id));
+
+            // 3. Aggregate per week
+            const progress: Record<string, { total: number; completed: number }> = {};
+            weekIds.forEach(wid => {
+                const weekLessons = lessons.filter(l => l.week_id === wid);
+                progress[wid] = {
+                    total: weekLessons.length,
+                    completed: weekLessons.filter(l => completedSet.has(l.id)).length
+                };
+            });
+            setWeeksProgress(progress);
+        } catch (e) {
+            console.error("Error fetching weeks progress", e);
         }
     };
 
@@ -450,120 +449,83 @@ const SabbathSchool: React.FC = () => {
         }
     };
 
-    const handleCreateQuarter = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Admin Handlers Removed (handleCreateQuarter, handleUpdateQuarter)
 
-        try {
-            let coverUrl = '';
-
-            // Upload cover if exists
-            if (quarterCover) {
-                const fileName = `quarter_${newQuarter.year}_Q${newQuarter.quarter}_${Date.now()}.${quarterCover.name.split('.').pop()}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('quarter-covers')
-                    .upload(fileName, quarterCover);
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('quarter-covers')
-                    .getPublicUrl(fileName);
-
-                coverUrl = publicUrl;
-            }
-
-            // Create quarter
-            const { data: quarterData, error: quarterError } = await supabase
-                .from('quarters')
-                .insert({
-                    ...newQuarter,
-                    cover_image_url: coverUrl
-                })
-                .select()
-                .single();
-
-            if (quarterError) throw quarterError;
-
-            // Create 13 empty weeks
-            const weeksToCreate = Array.from({ length: 13 }, (_, i) => ({
-                quarter_id: quarterData.id,
-                week_number: i + 1,
-                title: `Semana ${i + 1}`,
-                memory_verse: '',
-                start_date: newQuarter.start_date,
-                end_date: newQuarter.end_date
-            }));
-
-            const { error: weeksError } = await supabase
-                .from('weeks')
-                .insert(weeksToCreate);
-
-            if (weeksError) throw weeksError;
-
-            showToast('✅ Trimestre creado con 13 semanas', 'success');
-            setNewQuarter({
-                year: new Date().getFullYear(),
-                quarter: 1,
-                title: '',
-                description: '',
-                start_date: '',
-                end_date: '',
-                introduction: ''
-            });
-            setQuarterCover(null);
-            await loadQuarters();
-            setShowAdmin(false);
-        } catch (error: any) {
-            showToast(`❌ Error: ${error.message}`, 'error');
-        }
+    // Calculate Previous Day Lesson
+    const getPreviousDayLesson = () => {
+        if (!dailyLessons.length || !selectedDay) return null;
+        const currentIndex = DAYS.indexOf(selectedDay);
+        if (currentIndex <= 0) return null; // No previous day in this week context
+        const prevDayName = DAYS[currentIndex - 1];
+        return dailyLessons.find(l => l.day === prevDayName);
     };
 
-    const handleUpdateQuarter = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedQuarter) return;
-
-        try {
-            let coverUrl = selectedQuarter.cover_image_url;
-
-            // Upload new cover if exists
-            if (quarterCover) {
-                const fileName = `quarter_${newQuarter.year}_Q${newQuarter.quarter}_${Date.now()}.${quarterCover.name.split('.').pop()}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('quarter-covers')
-                    .upload(fileName, quarterCover);
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('quarter-covers')
-                    .getPublicUrl(fileName);
-
-                coverUrl = publicUrl;
+    // Fetch AI Summaries when day changes
+    useEffect(() => {
+        const fetchSummaries = async () => {
+            const currentLesson = getCurrentDayLesson();
+            if (!currentLesson) {
+                setCurrentSummary(null);
+                setPreviousSummary(null);
+                return;
             }
 
-            const { error } = await supabase
-                .from('quarters')
-                .update({
-                    ...newQuarter,
-                    cover_image_url: coverUrl
-                })
-                .eq('id', selectedQuarter.id);
+            // 1. Try Cache First (Instant Load)
+            const cacheKey = `sabbath_context_${currentLesson.id}`;
+            const cached = localStorage.getItem(cacheKey);
 
-            if (error) throw error;
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    setCurrentSummary(parsed.current_hook);
+                    setPreviousSummary(parsed.previous_impact);
+                    setLoadingSummaries(false);
+                    return;
+                } catch (e) {
+                    console.error("Error parsing cached summary", e);
+                    localStorage.removeItem(cacheKey);
+                }
+            }
 
-            showToast('✅ Trimestre actualizado con éxito', 'success');
-            setQuarterCover(null);
-            await loadQuarters();
-            // Update local state to reflect changes immediately
-            setSelectedQuarter({
-                ...selectedQuarter,
-                ...newQuarter,
-                cover_image_url: coverUrl
-            });
-        } catch (error: any) {
-            showToast(`❌ Error al actualizar: ${error.message}`, 'error');
+            // 2. If not cached, check auth and fetch
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                setCurrentSummary("Inicia sesión para ver el análisis espiritual.");
+                setPreviousSummary("Inicia sesión para ver el resumen.");
+                return;
+            }
+
+            setLoadingSummaries(true);
+            try {
+                const prevLesson = getPreviousDayLesson();
+
+
+
+                // Call new context API
+                const context = await getSabbathContext(
+                    currentLesson.content,
+                    prevLesson ? prevLesson.content : null
+                );
+
+                // Save to Cache
+                localStorage.setItem(cacheKey, JSON.stringify(context));
+
+                setCurrentSummary(context.current_hook);
+                setPreviousSummary(context.previous_impact);
+            } catch (e) {
+                console.error("Error fetching summaries", e);
+                // Fallback to avoid empty state
+                if (!currentSummary) setCurrentSummary("Conecta con Dios a través del estudio de su Palabra.");
+                if (!previousSummary) setPreviousSummary("Conecta con Dios a través del estudio de su Palabra.");
+            } finally {
+                setLoadingSummaries(false);
+            }
+        };
+
+        if (selectedWeek && selectedDay) {
+            fetchSummaries();
         }
-    };
+    }, [selectedWeek, selectedDay, dailyLessons]);
 
     const getCurrentDayLesson = () => {
         return dailyLessons.find(l => l.day === selectedDay);
@@ -582,47 +544,28 @@ const SabbathSchool: React.FC = () => {
             const todayStr = new Date().toISOString().split('T')[0];
             const isOnTime = lessonDate === todayStr;
 
-            // XP: 50 if on-time, 10 if late
-            const xpEarned = isOnTime ? 50 : 10;
-
-            // Upsert into lesson_completions (unique constraint on user_id + daily_lesson_id)
-            const { data: existing } = await supabase
-                .from('lesson_completions')
-                .select('id, score')
-                .eq('user_id', user.id)
-                .eq('daily_lesson_id', lesson.id)
-                .single();
-
-            let error;
-            if (existing) {
-                // Only update if new score is higher
-                if (score > existing.score) {
-                    const { error: err } = await supabase
-                        .from('lesson_completions')
-                        .update({ score, on_time: isOnTime, notes: `Quiz score: ${score}/3` })
-                        .eq('id', existing.id);
-                    error = err;
-                }
-            } else {
-                const { error: err } = await supabase
-                    .from('lesson_completions')
-                    .insert({
-                        user_id: user.id,
-                        daily_lesson_id: lesson.id,
-                        score,
-                        on_time: isOnTime,
-                        notes: `Quiz score: ${score}/3`
-                    });
-                error = err;
-            }
+            // Use RPC for atomic update and XP calculation
+            // Rule: 50 XP if on_time (and first time), 10 XP otherwise (late or review)
+            // The RPC handles the logic of "Review = 10 XP" internally by checking existence.
+            const { data: result, error } = await supabase.rpc('submit_lesson_completion', {
+                p_daily_lesson_id: lesson.id,
+                p_score: score,
+                p_on_time: isOnTime
+            });
 
             if (error) throw error;
 
-            const timeLabel = isOnTime ? '¡Puntual! ⏰' : 'Fuera de tiempo';
-            showToast(`🎉 ${timeLabel} Lección completada! (+${xpEarned} XP)`, 'success');
+            const rpcResult = result as any;
+            const xpEarned = rpcResult.xp_earned || 0;
+            const message = rpcResult.message || 'Lección completada';
+
+            showToast(`🎉 ${message}`, 'success');
             setQuizCompletedToday(true);
             setTodayQuizScore(score);
-            fetchWeeklyProgress(); // Refresh progress
+            fetchWeeklyProgress(); // Refresh progress locally
+
+            // Also refresh weeks progress list
+            fetchWeeksProgress(weeks.map(w => w.id));
 
             window.dispatchEvent(new CustomEvent('chapterCompleted', {
                 detail: { score, xp: xpEarned, onTime: isOnTime, reference: `Lección: ${lessonDate}` }
@@ -718,134 +661,6 @@ const SabbathSchool: React.FC = () => {
         );
     };
 
-    // Reusable Form Logic (Render function)
-    const renderQuarterForm = (isEditing: boolean) => (
-        <form onSubmit={isEditing ? handleUpdateQuarter : handleCreateQuarter} className="space-y-4 mb-8 bg-[#222330] p-6 rounded-xl border border-white/5">
-            <h3 className="text-lg font-semibold text-white mb-4 border-b border-white/10 pb-2">
-                {isEditing ? 'Editar Detalles del Trimestre' : 'Crear Nuevo Trimestre'}
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="text-xs text-gray-400 block mb-1">Año</label>
-                    <input
-                        type="number"
-                        placeholder="2026"
-                        value={newQuarter.year}
-                        onChange={(e) => setNewQuarter({ ...newQuarter, year: parseInt(e.target.value) })}
-                        className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 focus:border-primary focus:outline-none"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-400 block mb-1">Trimestre</label>
-                    <select
-                        value={newQuarter.quarter}
-                        onChange={(e) => setNewQuarter({ ...newQuarter, quarter: parseInt(e.target.value) })}
-                        className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 focus:border-primary focus:outline-none"
-                        required
-                    >
-                        <option value={1}>Q1 (Enero - Marzo)</option>
-                        <option value={2}>Q2 (Abril - Junio)</option>
-                        <option value={3}>Q3 (Julio - Septiembre)</option>
-                        <option value={4}>Q4 (Octubre - Diciembre)</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs text-gray-400 block mb-1">Inicio</label>
-                    <input
-                        type="date"
-                        value={newQuarter.start_date}
-                        onChange={(e) => setNewQuarter({ ...newQuarter, start_date: e.target.value })}
-                        className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 focus:border-primary focus:outline-none"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-400 block mb-1">Fin</label>
-                    <input
-                        type="date"
-                        value={newQuarter.end_date}
-                        onChange={(e) => setNewQuarter({ ...newQuarter, end_date: e.target.value })}
-                        className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 focus:border-primary focus:outline-none"
-                        required
-                    />
-                </div>
-            </div>
-
-            <div>
-                <label className="text-xs text-gray-400 block mb-1">Título del Trimestre</label>
-                <input
-                    type="text"
-                    placeholder="Ej: Uniendo el Cielo y la Tierra"
-                    value={newQuarter.title}
-                    onChange={(e) => setNewQuarter({ ...newQuarter, title: e.target.value })}
-                    className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 focus:border-primary focus:outline-none"
-                    required
-                />
-            </div>
-
-            <div>
-                <label className="text-xs text-gray-400 block mb-1">Descripción corta</label>
-                <textarea
-                    placeholder="Breve descripción para la tarjeta..."
-                    value={newQuarter.description}
-                    onChange={(e) => setNewQuarter({ ...newQuarter, description: e.target.value })}
-                    className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 resize-none focus:border-primary focus:outline-none"
-                    rows={2}
-                />
-            </div>
-
-            <div>
-                <label className="text-xs text-gray-400 block mb-1">Introducción Completa</label>
-                <textarea
-                    placeholder="Texto completo de introducción del folleto..."
-                    value={newQuarter.introduction}
-                    onChange={(e) => setNewQuarter({ ...newQuarter, introduction: e.target.value })}
-                    className="w-full bg-[#1a1b26] text-white rounded-lg p-3 border border-white/10 resize-none focus:border-primary focus:outline-none"
-                    rows={4}
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm text-gray-400 mb-2">Imagen de Portada (Trimestre)</label>
-                <div className="flex items-center gap-4">
-                    <label className="flex-1 cursor-pointer bg-[#1a1b26] border border-dashed border-white/20 rounded-lg p-4 flex flex-col items-center justify-center hover:bg-[#25263a] transition-colors">
-                        <span className="material-symbols-outlined text-3xl text-gray-500 mb-1">add_photo_alternate</span>
-                        <span className="text-xs text-gray-400">{quarterCover ? quarterCover.name : 'Click para subir nueva imagen'}</span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                    setFileToOptimize(file);
-                                    setOptimizationModalOpen(true);
-                                }
-                            }}
-                            className="hidden"
-                        />
-                    </label>
-                    {isEditing && selectedQuarter?.cover_image_url && !quarterCover && (
-                        <div className="size-20 rounded-lg overflow-hidden border border-white/10">
-                            <img src={selectedQuarter.cover_image_url} className="w-full h-full object-cover" alt="Actual" />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="pt-2">
-                <button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex justify-center items-center gap-2"
-                >
-                    <span className="material-symbols-outlined">{isEditing ? 'save' : 'add_circle'}</span>
-                    {isEditing ? 'Guardar Cambios' : 'Crear Trimestre'}
-                </button>
-            </div>
-        </form>
-    );
-
     return (
         <>
             <ImageOptimizerModal
@@ -863,14 +678,7 @@ const SabbathSchool: React.FC = () => {
 
             <div className="p-4 lg:p-10 animate-fade-in-up max-w-5xl mx-auto flex flex-col gap-8">
 
-                {adminEditingLesson && (
-                    <DailyLessonEditor
-                        initialData={adminEditingLesson}
-                        isOpen={!!adminEditingLesson}
-                        onCancel={() => setAdminEditingLesson(null)}
-                        onSave={handleAdminSaveLesson}
-                    />
-                )}
+                {/* DailyLessonEditor Removed */}
 
                 {/* Toast Notification */}
                 {toast && (
@@ -916,110 +724,119 @@ const SabbathSchool: React.FC = () => {
                 )}
 
                 {/* HERO SECTION - MATCHING READINGROOM */}
-                <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e1e2d] rounded-2xl p-6 md:p-12 relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e1e2d] rounded-2xl p-6 md:p-12 relative overflow-hidden shadow-2xl min-h-[300px] flex flex-col justify-center">
+
+                    {/* Background Image if available */}
+                    {selectedQuarter?.cover_image_url && !selectedWeek && (
+                        <div className="absolute inset-0 z-0">
+                            <img
+                                src={selectedQuarter.cover_image_url}
+                                alt="Cover"
+                                className="w-full h-full object-cover opacity-30 mix-blend-overlay"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a]/95 to-[#1e1e2d]/95"></div>
+                        </div>
+                    )}
+
+                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none z-0">
                         <span className="material-symbols-outlined text-9xl text-white">school</span>
                     </div>
 
-                    {isAdmin && (
-                        <button
-                            onClick={() => setShowAdmin(!showAdmin)}
-                            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-sm transition-all shadow-lg z-20"
-                            title="Administrar"
-                        >
-                            <span className="material-symbols-outlined">settings</span>
-                        </button>
-                    )}
-
-                    <div className="relative z-10 max-w-2xl">
+                    <div className="relative z-10 max-w-3xl">
                         <div className="flex items-center gap-3 mb-4 text-blue-200">
                             <span className="material-symbols-outlined">menu_book</span>
                             <span className="uppercase tracking-widest text-xs font-bold">Escuela Sabática</span>
                         </div>
-                        <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">
+
+                        <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight drop-shadow-2xl">
                             {!selectedQuarter ? 'Lección Semanal' :
                                 !selectedWeek ? selectedQuarter.title :
                                     selectedWeek.title}
                         </h1>
-                        <p className="text-lg text-blue-100 mb-8 opacity-90">
-                            Conecta con Dios a través del estudio profundo de su Palabra y el crecimiento espiritual diario.
-                        </p>
 
-                        {/* Optional: Add Action Button if needed, mostly context dependent */}
+                        {/* Quarter Description (Only showing when just Quarter is selected, not specific week) */}
+                        {selectedQuarter && !selectedWeek && (
+                            <p className="text-gray-100 text-lg mb-8 leading-relaxed max-w-2xl drop-shadow-md font-medium">
+                                {selectedQuarter.description}
+                            </p>
+                        )}
+
+
                     </div>
-                </div>
 
-                {/* WEEKLY PROGRESS - MATCHING READINGROOM */}
-                <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-4 md:p-8 shadow-sm dark:shadow-none">
-                    <h3 className="font-serif text-2xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
-                    {currentWeekInfo && (
-                        <div className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-                            {currentWeekInfo.quarterTitle} • Semana {currentWeekInfo.weekNumber}
-                        </div>
-                    )}
-                    <div className="flex justify-between items-center max-w-3xl mx-auto">
-                        {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
-                            const todayDay = new Date().getDay(); // 0=Sun, 6=Sat
-                            // Sabbath School week: Sat(0), Sun(1)... Fri(6) in our array logic?
-                            // The existing logic used `DAYS` array order: sat, sun, mon...
-                            // Let's align visual index with logic index.
-                            // visual index 0 = 'S' (Sat). JS Day 6.
-                            // visual index 1 = 'D' (Sun). JS Day 0.
+                    {/* WEEKLY PROGRESS - HIGH CONTRAST */}
+                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-10 shadow-lg relative overflow-hidden mx-auto max-w-4xl w-full">
+                        {/* Subtle glow effect */}
+                        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none"></div>
 
-                            // Determine if "Today" matches this index
-                            // index 0 -> Sat (6)
-                            // index 1 -> Sun (0)
-                            // index 2 -> Mon (1)
-                            // Formula: (index + 6) % 7 === todayDay? 
-                            // Check: 
-                            // i=0 -> 6%7=6 (Sat) -> Correct.
-                            // i=1 -> 7%7=0 (Sun) -> Correct.
+                        <h3 className="font-serif text-3xl font-bold text-white mb-8 tracking-tight drop-shadow-md">Progreso Semanal</h3>
+                        {currentWeekInfo && (
+                            <div className="mb-8 text-sm text-blue-200 font-medium tracking-wide uppercase opacity-80 border-b border-white/10 pb-4 inline-block pr-8">
+                                {currentWeekInfo.quarterTitle} • Semana {currentWeekInfo.weekNumber}
+                            </div>
+                        )}
+                        <div className="flex justify-between items-center max-w-4xl mx-auto px-2">
+                            {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
+                                const todayDay = new Date().getDay(); // 0=Sun, 6=Sat
+                                const isToday = ((index + 6) % 7) === todayDay;
+                                const isCompleted = weeklyProgress[index];
 
-                            const isToday = ((index + 6) % 7) === todayDay;
-                            const isCompleted = weeklyProgress[index];
+                                let status = 'upcoming';
+                                if (isCompleted) {
+                                    status = 'completed';
+                                } else if (isToday) {
+                                    status = 'active';
+                                } else if (!isCompleted && !isToday) {
+                                    const currentDayIndex = (todayDay + 1) % 7;
+                                    if (index < currentDayIndex) status = 'missed';
+                                }
 
-                            let status = 'upcoming';
-                            if (isCompleted) {
-                                status = 'completed';
-                            } else if (isToday) {
-                                status = 'active';
-                            } else if (!isCompleted && !isToday) {
-                                // Simple past check? 
-                                // If today is Monday(1, index 2), then Sat(0) and Sun(1) are past.
-                                // Logic: current index > this index ?
-                                // Need to map todayDay to 0-6 scale where Sat=0.
-                                const currentDayIndex = (todayDay + 1) % 7;
-                                if (index < currentDayIndex) status = 'missed';
-                            }
+                                return (
+                                    <div key={index} className="flex flex-col items-center gap-4 relative group/day">
+                                        <span className={`text-xs font-bold tracking-widest ${isToday ? 'text-blue-200' : 'text-gray-400'}`}>{day}</span>
 
-                            return (
-                                <div key={index} className="flex flex-col items-center gap-3">
-                                    <span className="text-xs font-bold text-gray-500">{day}</span>
-                                    <div className={`size-8 md:size-12 rounded-full flex items-center justify-center border-2 transition-all
-                                        ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black' :
-                                            status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' :
-                                                status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-300' :
-                                                    'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52] text-gray-400 dark:text-gray-600'}
+                                        {/* Tooltip for Summary */}
+                                        <div className="absolute bottom-full mb-3 w-48 p-3 bg-gray-900/95 backdrop-blur-md text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/day:opacity-100 group-hover/day:visible transition-all z-20 pointer-events-none text-center border border-white/10">
+                                            {(() => {
+                                                const dayMap = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+                                                const dayName = dayMap[index];
+                                                const lesson = dailyLessons.find(l => l.day === dayName);
+                                                return lesson?.summary || "Sin resumen disponible";
+                                            })()}
+                                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45 border-r border-b border-white/10"></div>
+                                        </div>
+
+                                        <div className={`size-10 md:size-14 rounded-full flex items-center justify-center border transition-all cursor-help relative
+                                        ${status === 'completed' ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' :
+                                                status === 'active' ? 'bg-blue-600/20 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-pulse' :
+                                                    status === 'missed' ? 'bg-transparent border-red-500/30 text-gray-500' :
+                                                        'bg-white/5 border-white/10 text-gray-500'}
                                      `}>
-                                        {status === 'completed' && <span className="material-symbols-outlined">check</span>}
-                                        {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
-                                        {status === 'missed' && <span className="size-2 bg-red-400 rounded-full"></span>}
-                                        {status === 'upcoming' && <span className="size-2 bg-gray-600 rounded-full"></span>}
+                                            {status === 'completed' && <span className="material-symbols-outlined text-lg">check</span>}
+                                            {status === 'active' && <span className="material-symbols-outlined text-xl">play_arrow</span>}
+                                            {status === 'missed' && <span className="size-2 bg-red-400/50 rounded-full"></span>}
+                                            {status === 'upcoming' && <span className="size-2 bg-white/20 rounded-full"></span>}
+
+                                            {/* Glow effect for active/completed */}
+                                            {(status === 'completed' || status === 'active') && (
+                                                <div className="absolute inset-0 rounded-full bg-blue-400/20 blur-md -z-10"></div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-8 flex justify-between items-center text-sm text-gray-400 px-4">
-                        <span>{Math.round((completedCount / 7) * 100)}% Completado</span>
-                        <span className="text-accent-gold font-bold">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
+                                );
+                            })}
+                        </div>
+                        <div className="mt-10 flex justify-between items-center text-sm px-4 border-t border-white/5 pt-6">
+                            <span className="text-gray-400 font-medium">{Math.round((completedCount / 7) * 100)}% Completado</span>
+                            <span className="text-yellow-400 font-bold tracking-wide shadow-black-sm">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* MAIN CONTENT AREA */}
 
                 {/* VIEW 1: QUARTER LIST (If nothing selected) */}
-                {!selectedQuarter && !showAdmin && (
+                {!selectedQuarter && (
                     <div className="grid gap-4">
                         <h3 className="font-bold text-gray-400 text-sm uppercase tracking-widest ml-1">Trimestres Disponibles</h3>
                         {quarters.map((quarter) => (
@@ -1056,7 +873,7 @@ const SabbathSchool: React.FC = () => {
                 )}
 
                 {/* VIEW 2: QUARTER DETAILS & WEEKS */}
-                {selectedQuarter && !selectedWeek && !showAdmin && (
+                {selectedQuarter && !selectedWeek && (
                     <div className="space-y-8 animate-fade-in">
                         {/* Intro Card */}
                         <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm">
@@ -1096,11 +913,26 @@ const SabbathSchool: React.FC = () => {
                                         <div className="size-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold">
                                             {week.week_number}
                                         </div>
-                                        <div>
-                                            <p className="text-gray-900 dark:text-white font-bold text-base">{week.title}</p>
-                                            <p className="text-gray-500 text-xs">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <p className="text-gray-900 dark:text-white font-bold text-base truncate">{week.title}</p>
+                                                {weeksProgress[week.id] && (
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${weeksProgress[week.id].completed === weeksProgress[week.id].total ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400'}`}>
+                                                        {weeksProgress[week.id].completed}/{weeksProgress[week.id].total}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-gray-500 text-xs mb-2">
                                                 {week.start_date} - {week.end_date}
                                             </p>
+                                            {weeksProgress[week.id] && weeksProgress[week.id].total > 0 && (
+                                                <div className="w-full h-1.5 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-500 ${weeksProgress[week.id].completed === weeksProgress[week.id].total ? 'bg-green-500' : 'bg-primary'}`}
+                                                        style={{ width: `${(weeksProgress[week.id].completed / weeksProgress[week.id].total) * 100}%` }}
+                                                    ></div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <span className="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">arrow_forward</span>
@@ -1111,12 +943,62 @@ const SabbathSchool: React.FC = () => {
                 )}
 
                 {/* VIEW 3: WEEKLY LESSON CONTENT (Reader) */}
-                {selectedWeek && !showAdmin && (
+                {selectedWeek && (
                     <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-4 md:p-8 shadow-sm overflow-hidden">
                         {/* Week Header */}
                         <div className="mb-8 border-b border-gray-100 dark:border-white/5 pb-6">
                             <span className="text-primary text-sm font-bold tracking-wider uppercase mb-1 block">Lección Semanal</span>
                             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-4">{selectedWeek.title}</h2>
+
+                            {/* AI SUMMARIES CARDS */}
+                            {(currentSummary || previousSummary || loadingSummaries) && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                    {/* Previous Lesson Card */}
+                                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#25263a] dark:to-[#1e1e2d] p-5 rounded-xl border border-gray-200 dark:border-white/5 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                                            <span className="material-symbols-outlined text-4xl">history</span>
+                                        </div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-2">
+                                            <span className="size-2 rounded-full bg-gray-400"></span>
+                                            Resumen Anterior
+                                        </h4>
+                                        <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed min-h-[60px]">
+                                            {loadingSummaries ? (
+                                                <div className="animate-pulse space-y-2">
+                                                    <div className="h-2 bg-gray-300 dark:bg-white/10 rounded w-3/4"></div>
+                                                    <div className="h-2 bg-gray-300 dark:bg-white/10 rounded w-1/2"></div>
+                                                </div>
+                                            ) : previousSummary ? (
+                                                <p>{previousSummary}</p>
+                                            ) : (
+                                                <p className="opacity-50 italic">No hay lección previa en esta semana.</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Current Lesson Card */}
+                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-primary/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-100 dark:border-primary/20 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-3 opacity-10">
+                                            <span className="material-symbols-outlined text-4xl text-primary">auto_awesome</span>
+                                        </div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-2">
+                                            <span className="size-2 rounded-full bg-primary animate-pulse"></span>
+                                            Al Día de Hoy
+                                        </h4>
+                                        <div className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed min-h-[60px]">
+                                            {loadingSummaries ? (
+                                                <div className="animate-pulse space-y-2">
+                                                    <div className="h-2 bg-primary/20 rounded w-3/4"></div>
+                                                    <div className="h-2 bg-primary/20 rounded w-5/6"></div>
+                                                    <div className="h-2 bg-primary/20 rounded w-1/2"></div>
+                                                </div>
+                                            ) : (
+                                                <p>{currentSummary || "Analizando contenido..."}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {selectedWeek.memory_verse && (
                                 <div className="bg-gray-50 dark:bg-[#25263a] p-6 rounded-xl border-l-4 border-accent-gold italic text-gray-600 dark:text-gray-300 relative">
                                     <span className="material-symbols-outlined absolute top-4 left-4 text-accent-gold/20 text-4xl">format_quote</span>
@@ -1161,7 +1043,7 @@ const SabbathSchool: React.FC = () => {
                 )}
 
                 {/* Quiz Call to Action OR Active Quiz - MOVED OUTSIDE CARD */}
-                {selectedWeek && !showAdmin && getCurrentDayLesson() && (
+                {selectedWeek && getCurrentDayLesson() && (
                     <div className="mt-8 animate-fade-in" id="quiz-section">
                         {!showQuizModal ? (
                             /* 1. STATE: CALL TO ACTION (Gradient Card) */
@@ -1277,448 +1159,11 @@ const SabbathSchool: React.FC = () => {
                     </div>
                 )}
 
-                {/* --- ADMIN PANEL (Retained Functional, Styles Updated Lite) --- */}
-                {showAdmin && isAdmin && (
-                    <div className="bg-white dark:bg-[#1a1b26] rounded-2xl border border-gray-200 dark:border-white/5 p-6 mb-8 animate-fade-in shadow-xl">
-                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-white/10 pb-4">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
-                                Panel de Administración
-                            </h2>
-                            {selectedQuarter && (
-                                <div className="flex items-center gap-4">
-                                    <span className="text-gray-500 text-sm">Editando: <strong className="text-gray-900 dark:text-white">{selectedQuarter.title}</strong></span>
-                                    <button
-                                        onClick={() => setSelectedQuarter(null)}
-                                        className="text-xs bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-white px-3 py-1.5 rounded transition-colors"
-                                    >
-                                        Cambiar Trimestre
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {!selectedQuarter ? (
-                            renderQuarterForm(false)
-                        ) : (
-                            <div className="animate-fade-in">
-                                <div className="flex gap-4 mb-6 border-b border-gray-100 dark:border-white/10">
-                                    <button onClick={() => setActiveTab('weeks')} className={`pb-2 px-2 font-medium ${activeTab === 'weeks' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}>Gestionar Lecciones</button>
-                                    <button onClick={() => setActiveTab('details')} className={`pb-2 px-2 font-medium ${activeTab === 'details' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}>Editar Detalles</button>
-                                </div>
-                                {activeTab === 'weeks' ? (
-                                    <div className="bg-gray-50 dark:bg-[#222330] p-6 rounded-xl border border-gray-200 dark:border-white/5">
-                                        <WeekManagement weeks={weeks} quarterId={selectedQuarter.id} onUpdate={() => loadWeeks(selectedQuarter.id)} />
-                                    </div>
-                                ) : renderQuarterForm(true)}
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Admin Panel Removed */}
 
 
             </div>
         </>
-    );
-};
-
-// Week Management Component (for admin)
-const WeekManagement: React.FC<{ weeks: Week[]; quarterId: string; onUpdate: () => void }> = ({ weeks, quarterId, onUpdate }) => {
-    const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
-
-    return (
-        <div className="space-y-3">
-            {weeks.map((week) => (
-                <WeekUploader
-                    key={week.id}
-                    week={week}
-                    isExpanded={expandedWeek === week.id}
-                    onToggle={() => setExpandedWeek(expandedWeek === week.id ? null : week.id)}
-                    onUpdate={onUpdate}
-                />
-            ))}
-        </div>
-    );
-};
-
-// Week Uploader Component
-const WeekUploader: React.FC<{
-    week: Week;
-    isExpanded: boolean;
-    onToggle: () => void;
-    onUpdate: () => void;
-}> = ({ week, isExpanded, onToggle, onUpdate }) => {
-    const [title, setTitle] = useState(week.title || '');
-    const [memoryVerse, setMemoryVerse] = useState(week.memory_verse || '');
-    const [coverImage, setCoverImage] = useState<File | null>(null);
-    const [pdfFile, setPdfFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const [status, setStatus] = useState('');
-    const [generatedContent, setGeneratedContent] = useState<any>(null); // For AI Review
-    const [editingLessonIndex, setEditingLessonIndex] = useState<number | null>(null); // Index of day being edited in generatedContent
-    const [reviewTab, setReviewTab] = useState(0);
-
-    // Optimization State
-    const [optimizationModalOpen, setOptimizationModalOpen] = useState(false);
-    const [fileToOptimize, setFileToOptimize] = useState<File | null>(null);
-
-    const handleUpload = async () => {
-        if (!pdfFile) {
-            setStatus('❌ Selecciona un PDF');
-            return;
-        }
-
-        try {
-            setUploading(true);
-            setStatus('📤 Subiendo archivos...');
-
-            // Update week info
-            await supabase
-                .from('weeks')
-                .update({ title, memory_verse: memoryVerse })
-                .eq('id', week.id);
-
-            // Upload cover image if provided
-            let coverUrl = week.cover_image_url;
-            if (coverImage) {
-                const coverFileName = `week_${week.id}_cover_${Date.now()}.${coverImage.name.split('.').pop()}`;
-                const { error: coverError } = await supabase.storage
-                    .from('lesson-covers')
-                    .upload(coverFileName, coverImage, { upsert: true });
-
-                if (coverError) throw coverError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('lesson-covers')
-                    .getPublicUrl(coverFileName);
-
-                coverUrl = publicUrl;
-
-                await supabase
-                    .from('weeks')
-                    .update({ cover_image_url: coverUrl })
-                    .eq('id', week.id);
-            }
-
-            // Upload PDF
-            setStatus('📄 Subiendo PDF...');
-            const pdfFileName = `week_${week.id}_${Date.now()}.pdf`;
-            const { error: pdfError } = await supabase.storage
-                .from('lesson-pdfs')
-                .upload(pdfFileName, pdfFile, { upsert: true });
-
-            if (pdfError) throw pdfError;
-
-            const { data: { publicUrl: pdfUrl } } = supabase.storage
-                .from('lesson-pdfs')
-                .getPublicUrl(pdfFileName);
-
-            // Process with AI
-            setStatus('🤖 Procesando con IA (esto puede tardar 1 min)...');
-
-            const { data, error } = await supabase.functions.invoke('process-weekly-lesson', {
-                body: { weekId: week.id, pdfUrl, weekTitle: title }
-            });
-
-            if (error) throw error;
-
-            console.log("AI Response:", data);
-
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            if (data.data) {
-                // If we got data back for review
-                const extractedDays = data.data.weeks?.[0]?.days || [];
-                console.log(`Extracted ${extractedDays.length} days:`, extractedDays.map((d: any) => d.day));
-
-                setGeneratedContent(data.data);
-                setStatus(`✅ IA completada. Extraídos ${extractedDays.length}/7 días. Revisa y guarda.`);
-            } else {
-                // Fallback for old behavior (if any)
-                setStatus(`✅ ¡Lección procesada!`);
-                onUpdate();
-            }
-
-            setCoverImage(null);
-            setPdfFile(null);
-        } catch (error: any) {
-            console.error(error);
-            setStatus(`❌ Error: ${error.message || 'Error desconocido'}`);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    const handleSaveAIContent = async () => {
-        console.log("💾 handleSaveAIContent INICIADO", generatedContent);
-        if (!generatedContent || !generatedContent.weeks) {
-            console.error("❌ No hay contenido generado o semanas indefinidas");
-            return;
-        }
-
-        try {
-            setUploading(true);
-            setStatus('💾 Guardando en base de datos...');
-            console.log("🔄 Procesando semanas:", generatedContent.weeks.length);
-
-            // We assume 1 week per PDF for now, but structure supports multiple
-            for (const genWeek of generatedContent.weeks) {
-                console.log("  ➡️ Procesando semana, verso:", genWeek.memoryVerse);
-                // Insert/Update week details (memory verse might have been extracted)
-                if (genWeek.memoryVerse) {
-                    const { error: weekError } = await supabase
-                        .from('weeks')
-                        .update({ memory_verse: genWeek.memoryVerse })
-                        .eq('id', week.id);
-
-                    if (weekError) console.error("❌ Error actualizando semana:", weekError);
-                }
-
-                let lessonsCreated = 0;
-                console.log("  ➡️ Insertando días:", genWeek.days.length);
-
-                // Insert daily lessons
-                for (const day of genWeek.days) {
-                    console.log("    📅 Guardando día:", day.day);
-
-                    // Use UPSERT to update if exists, insert if not (avoids RLS delete permission issues)
-                    const { error: lessonError } = await supabase
-                        .from('daily_lessons')
-                        .upsert({
-                            week_id: week.id,
-                            day: day.day.toLowerCase(),
-                            title: day.title,
-                            content: day.content,
-                            bible_verses: day.verses || [],
-                            reflection_questions: day.questions || []
-                        }, {
-                            onConflict: 'week_id,day'
-                        });
-
-                    if (lessonError) {
-                        console.error('❌ Error inserting lesson:', lessonError);
-                        throw lessonError;
-                    }
-                    console.log("    ✅ Día guardado:", day.day);
-                    lessonsCreated++;
-                }
-            }
-
-            console.log("🎉 Guardado completado con éxito");
-            setStatus('✅ ¡Contenido guardado exitosamente!');
-            setGeneratedContent(null); // Clear review
-            onUpdate(); // Refresh parent
-        } catch (error: any) {
-            console.error("❌ Error CRÍTICO en handleSaveAIContent:", error);
-            console.error(error);
-            setStatus(`❌ Error al guardar: ${error.message}`);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-
-
-    const handleUpdateGeneratedLesson = (updatedLesson: any) => {
-        if (editingLessonIndex === null || !generatedContent) return;
-
-        const newDays = [...generatedContent.weeks[0].days];
-        newDays[editingLessonIndex] = {
-            ...newDays[editingLessonIndex],
-            title: updatedLesson.title,
-            content: updatedLesson.content,
-            verses: updatedLesson.bible_verses, // Map back to internal format
-            questions: updatedLesson.reflection_questions
-        };
-
-        setGeneratedContent({
-            ...generatedContent,
-            weeks: [{
-                ...generatedContent.weeks[0],
-                days: newDays
-            }]
-        });
-        setEditingLessonIndex(null);
-    };
-
-    return (
-        <div className="bg-[#1a1b26] rounded-lg border border-white/10 overflow-hidden">
-            <ImageOptimizerModal
-                isOpen={optimizationModalOpen}
-                onClose={() => setOptimizationModalOpen(false)}
-                imageFile={fileToOptimize}
-                onOptimize={(file) => {
-                    setCoverImage(file);
-                    setOptimizationModalOpen(false);
-                }}
-            />
-            <button
-                onClick={onToggle}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
-            >
-                <div className="flex items-center gap-4">
-                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-sm ${week.cover_image_url ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-gray-400'}`}>
-                        {week.week_number}
-                    </div>
-                    <div>
-                        <h4 className="text-white font-medium">{week.title}</h4>
-                        <div className="flex items-center gap-2 text-xs">
-                            {week.cover_image_url ?
-                                <span className="text-green-400 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">image</span> Portada</span> :
-                                <span className="text-gray-600">Sin portada</span>}
-                            <span className="text-gray-700">•</span>
-                            {week.memory_verse ?
-                                <span className="text-green-400 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">check_circle</span> Configurado</span> :
-                                <span className="text-gray-600">Pendiente</span>}
-                        </div>
-                    </div>
-                </div>
-                <span className="material-symbols-outlined text-white/50">
-                    {isExpanded ? 'expand_less' : 'expand_more'}
-                </span>
-            </button>
-
-            {isExpanded && (
-                <div className="p-4 bg-[#15161e] border-t border-white/5 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs text-gray-400 block mb-1">Título de la semana</label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="w-full bg-[#1a1b26] text-white rounded-lg p-2.5 border border-white/10 text-sm focus:border-primary focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-400 block mb-1">Versículo para memorizar</label>
-                            <input
-                                type="text"
-                                value={memoryVerse}
-                                onChange={(e) => setMemoryVerse(e.target.value)}
-                                className="w-full bg-[#1a1b26] text-white rounded-lg p-2.5 border border-white/10 text-sm focus:border-primary focus:outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs text-gray-400 mb-1">Imagen de Portada</label>
-                            <label className="flex items-center gap-2 cursor-pointer bg-[#1a1b26] border border-dashed border-white/20 rounded-lg p-3 hover:bg-[#20212e] transition-colors">
-                                <span className="material-symbols-outlined text-gray-500">add_photo_alternate</span>
-                                <span className="text-xs text-gray-400 truncate">{coverImage ? coverImage.name : 'Subir imagen... (JPG, PNG)'}</span>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            setFileToOptimize(file);
-                                            setOptimizationModalOpen(true);
-                                        }
-                                    }}
-                                    className="hidden"
-                                />
-                            </label>
-                            {week.cover_image_url && !coverImage && <p className="text-xs text-green-500 mt-1 pl-1">✓ Imagen actual guardada</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-xs text-gray-400 mb-1">PDF de la Semana</label>
-                            <label className="flex items-center gap-2 cursor-pointer bg-[#1a1b26] border border-dashed border-white/20 rounded-lg p-3 hover:bg-[#20212e] transition-colors">
-                                <span className="material-symbols-outlined text-gray-500">picture_as_pdf</span>
-                                <span className="text-xs text-gray-400 truncate">{pdfFile ? pdfFile.name : 'Subir PDF de la lección...'}</span>
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-                                    className="hidden"
-                                />
-                            </label>
-                        </div>
-                    </div>
-
-                    {status && (
-                        <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${status.startsWith('✅') ? 'bg-green-500/10 text-green-300' :
-                            status.startsWith('❌') ? 'bg-red-500/10 text-red-300' :
-                                'bg-blue-500/10 text-blue-300'
-                            }`}>
-                            {status.includes('Procesando') && <span className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>}
-                            {status}
-                        </div>
-                    )}
-
-                    <button
-                        onClick={handleUpload}
-                        disabled={uploading || !pdfFile}
-                        className="w-full bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 px-6 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20"
-                    >
-                        {uploading ? 'Procesando...' : 'Generar Lección con IA'}
-                    </button>
-
-                    {/* AI REVIEW SECTION */}
-                    {generatedContent && (
-                        <div className="mt-4 p-4 bg-[#1f1f2e] rounded-lg border border-accent-gold/30 animate-fade-in">
-                            <div className="flex items-center gap-2 mb-4 text-accent-gold font-bold">
-                                <span className="material-symbols-outlined">reviews</span>
-                                Revisión de Contenido Generado
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {generatedContent.weeks[0].days.map((day: any, idx: number) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setReviewTab(idx)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${reviewTab === idx
-                                            ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                                            : 'bg-[#15161e] border-white/10 text-gray-400 hover:bg-white/5'
-                                            }`}
-                                    >
-                                        {day.day}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {generatedContent.weeks[0].days[reviewTab] && (
-                                <div className="bg-[#15161e] p-6 rounded-lg border border-white/10 shadow-sm relative animate-fade-in">
-                                    <div className="absolute top-4 right-4 text-xs text-gray-500 bg-white/5 px-2 py-1 rounded">
-                                        {generatedContent.weeks[0].days[reviewTab].verses?.length || 0} versículos
-                                    </div>
-                                    <h4 className="text-sm uppercase text-primary font-bold mb-3 tracking-wider border-b border-white/5 pb-2">
-                                        {generatedContent.weeks[0].days[reviewTab].day}
-                                    </h4>
-                                    <h5 className="font-bold text-white text-xl mb-4 leading-tight">{generatedContent.weeks[0].days[reviewTab].title}</h5>
-                                    <div className="text-base text-gray-300 whitespace-pre-wrap leading-relaxed">
-                                        {generatedContent.weeks[0].days[reviewTab].content}
-                                    </div>
-                                    {generatedContent.weeks[0].days[reviewTab].questions && generatedContent.weeks[0].days[reviewTab].questions.length > 0 && (
-                                        <div className="mt-6 pt-4 border-t border-white/5">
-                                            <p className="text-xs text-gray-500 font-bold mb-2 uppercase">Preguntas:</p>
-                                            <ul className="list-disc list-inside text-sm text-gray-400 space-y-2">
-                                                {generatedContent.weeks[0].days[reviewTab].questions.map((q: string, i: number) => (
-                                                    <li key={i}>{q}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <button
-                                onClick={handleSaveAIContent}
-                                disabled={uploading}
-                                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-green-500/20"
-                            >
-                                <span className="material-symbols-outlined">save</span>
-                                {uploading ? 'Guardando...' : 'Confirmar y Guardar Todo'}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
     );
 };
 
@@ -1786,6 +1231,7 @@ const BibleTextParser: React.FC<{
     );
 };
 
+// Daily Lesson View Component
 // Daily Lesson View Component
 const DailyLessonView: React.FC<{
     lesson: DailyLesson;

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Screen } from '../types';
 
@@ -12,6 +12,9 @@ import { supabase } from '../services/supabase';
 import BibleSearchModal from './BibleSearchModal';
 import AIChatModal from './AIChatModal';
 import { useUser } from '../contexts/UserContext';
+import { useAdmin } from '../hooks/useAdmin';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
   const location = useLocation();
@@ -25,10 +28,60 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
   // Simple mapping: /dashboard -> 'dashboard', / -> 'dashboard'
   const currentPath = location.pathname.substring(1) || 'dashboard';
 
+  /* Notification State */
+  const { isAdmin } = useAdmin();
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+
+  useEffect(() => {
+    if (profile?.id) fetchNotifications();
+  }, [profile?.id]);
+
+  const fetchNotifications = async () => {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', profile?.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (data) {
+      setNotifications(data);
+      setUnreadCount(data.filter((n: any) => !n.is_read).length);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  };
+
+  const markAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', profile?.id).eq('is_read', false);
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    await markAsRead(notification.id);
+    setIsNotificationsOpen(false);
+
+    if (notification.type === 'birthday' && notification.metadata?.birthday_user_id) {
+      navigate(`/community?greet_user=${notification.metadata.birthday_user_id}`);
+    } else if (notification.type === 'system') {
+      // Handle other types if needed
+    }
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
     { id: 'reading', label: 'Reavivados', icon: 'auto_stories', path: '/reading' },
     { id: 'sabbath-school', label: 'Escuela Sabática', icon: 'school', path: '/sabbath-school' },
+    ...(isAdmin ? [{ id: 'sabbath-school-admin', label: 'Admin ES', icon: 'admin_panel_settings', path: '/sabbath-school/admin' }] : []),
     { id: 'bible', label: 'Biblia', icon: 'menu_book', path: '/bible' },
     { id: 'community', icon: 'group', label: 'Comunidad', path: '/community' },
     { id: 'profile', icon: 'person', label: 'Perfil', path: '/profile' },
@@ -155,10 +208,73 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#292938] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors" onClick={() => handleNavigation('/community')}>
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full"></span>
-            </button>
+            <div className="relative z-50">
+              <button
+                className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#292938] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {isNotificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1b26] rounded-2xl shadow-xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right">
+                    <div className="p-4 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
+                      <h3 className="font-bold text-gray-900 dark:text-white">Notificaciones</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-xs text-primary hover:text-primary/80 font-medium"
+                        >
+                          Marcar leídas
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-[70vh] overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div
+                            key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`p-4 border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${!n.is_read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                          >
+                            <div className="flex gap-3">
+                              <div className={`mt-1 size-8 rounded-full flex items-center justify-center shrink-0 ${n.type === 'birthday' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                <span className="material-symbols-outlined text-lg">
+                                  {n.type === 'birthday' ? 'cake' : 'notifications'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className={`text-sm font-bold ${!n.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
+                                  {n.title}
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                                  {n.message}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-2">
+                                  {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-400 dark:text-gray-500">
+                          <span className="material-symbols-outlined text-4xl mb-2 opacity-50">notifications_off</span>
+                          <p className="text-sm">No tienes notificaciones</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div
               onClick={() => handleNavigation('/rankings')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-[#292938] border border-gray-200 dark:border-[#3d3d52] shadow-sm dark:shadow-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#323242] transition-colors"

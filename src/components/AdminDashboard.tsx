@@ -45,27 +45,26 @@ const AdminDashboard: React.FC = () => {
             // Get system stats
             const { data: profiles } = await supabase
                 .from('profiles')
-                .select('id, created_at');
+                .select('id, updated_at'); // Changed created_at to updated_at
 
-            const { data: posts } = await supabase
-                .from('posts')
-                .select('id');
+            // Posts table does not exist
+            const posts: any[] = [];
 
             const { data: readings } = await supabase
-                .from('reading_progress')
+                .from('lesson_completions') // Changed reading_progress to lesson_completions
                 .select('id');
 
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
             const activeUsers = profiles?.filter(p =>
-                new Date(p.created_at) > sevenDaysAgo
+                new Date(p.updated_at) > sevenDaysAgo // Changed created_at to updated_at
             ).length || 0;
 
             setStats({
                 total_users: profiles?.length || 0,
                 active_users_7d: activeUsers,
-                total_posts: posts?.length || 0,
+                total_posts: 0, // Posts table doesn't exist
                 total_readings: readings?.length || 0,
             });
 
@@ -85,19 +84,16 @@ const AdminDashboard: React.FC = () => {
             const usersWithStats = await Promise.all(
                 (topUsersData || []).map(async (user) => {
                     const { count: readingsCount } = await supabase
-                        .from('reading_progress')
+                        .from('lesson_completions') // Changed reading_progress
                         .select('*', { count: 'exact', head: true })
                         .eq('user_id', user.id);
 
-                    const { count: postsCount } = await supabase
-                        .from('posts')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('user_id', user.id);
+                    // Posts query removed
 
                     return {
                         ...user,
                         readings_completed: readingsCount || 0,
-                        posts_count: postsCount || 0,
+                        posts_count: 0,
                     };
                 })
             );

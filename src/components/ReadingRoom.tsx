@@ -660,6 +660,24 @@ const ReadingView: React.FC<{
       const data = await chapterPromise;
 
       if (data) {
+        // VALIDATION: Prevent future readings
+        // Compare indexes to check if it's future
+        const todayRef = getTodayChapterReference();
+        const targetBookIndex = BIBLE_BOOKS_List.indexOf(data.book);
+        const todayBookIndex = BIBLE_BOOKS_List.indexOf(todayRef.book);
+
+        let isFuture = false;
+        if (targetBookIndex !== -1 && todayBookIndex !== -1) {
+          if (targetBookIndex > todayBookIndex) isFuture = true;
+          else if (targetBookIndex === todayBookIndex && data.chapter > todayRef.chapter) isFuture = true;
+        }
+
+        if (isFuture) {
+          alert("No puedes acceder a lecturas futuras.");
+          onBack();
+          return;
+        }
+
         // Start context fetch immediately while setting chapter data
         const contextPromise = getChapterContext(data.book, data.chapter);
 
@@ -667,7 +685,7 @@ const ReadingView: React.FC<{
         setChapterData(data);
 
         // Check if this is today's chapter
-        const todayRef = getTodayChapterReference();
+        // Re-use todayRef calculated above
         const todayReference = `${todayRef.book} ${todayRef.chapter} `;
         setIsTodaysChapter(data.reference === todayReference);
 
@@ -732,6 +750,15 @@ const ReadingView: React.FC<{
         window.dispatchEvent(new CustomEvent('chapterCompleted', {
           detail: { score: finalScore, reference: chapterData?.reference || "" }
         }));
+
+        // VALIDATION: Prevent duplicate XP if already completed today
+        if (quizCompletedToday) {
+          // User already completed it previously (score >= 2), checking if they are just retaking it?
+          // Actually `quizCompletedToday` is set if score >= 2 in checkQuizCompletion.
+          // If so, we should NOT award XP again.
+          // We can show a toast or just skip onComplete logic for XP.
+          return;
+        }
 
         // Simplify: Just save the score as the "verse" (or a summary) since user requested it.
         const summary = `Cuestionario completado: ${finalScore}/${questions.length} aciertos.`;

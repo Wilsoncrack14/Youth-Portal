@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { UserProfile } from '../hooks/useUserData';
 import { Prayer, PrayerComment } from '../types';
@@ -11,6 +13,33 @@ const Community: React.FC = () => {
   const { profile } = useUser();
   const [birthdays, setBirthdays] = useState<UserProfile[]>([]);
   const [loadingBirthdays, setLoadingBirthdays] = useState(true);
+
+  // Greeting Modal State
+  const [greetingModalOpen, setGreetingModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+
+  const handleOpenGreeting = (user: UserProfile) => {
+    setSelectedUser(user);
+    setGreetingModalOpen(true);
+  };
+
+  const handleSendGreeting = () => {
+    if (!selectedUser) return;
+    const message = `¡Feliz cumpleaños *${selectedUser.username}*! 🎂 Que Dios te bendiga mucho hoy y siempre. 🎉`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(message).then(() => {
+      // Open Group Link (Grupo de Jóvenes Emaús)
+      const targetGroup = groups.find(g => g.name.includes('Emaús')) || groups[0];
+      if (targetGroup?.link) {
+        window.open(targetGroup.link, '_blank');
+      }
+      setGreetingModalOpen(false);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+      // Fallback or alert if needed
+    });
+  };
 
   // Prayer Wall State
   const [prayers, setPrayers] = useState<Prayer[]>([]);
@@ -71,6 +100,21 @@ const Community: React.FC = () => {
   useEffect(() => {
     fetchPrayers();
   }, [profile?.id]);
+
+  /* Smart Navigation: Open Greeting Modal if URL param exists */
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const greetUserId = searchParams.get('greet_user');
+
+    if (greetUserId && birthdays.length > 0) {
+      const userToGreet = birthdays.find(u => u.id === greetUserId);
+      if (userToGreet) {
+        handleOpenGreeting(userToGreet);
+      }
+    }
+  }, [location.search, birthdays]);
 
   useEffect(() => {
     const fetchBirthdays = async () => {
@@ -144,7 +188,7 @@ const Community: React.FC = () => {
   };
 
   const groups = [
-    { name: 'Grupo de Jóvenes Caleb', members: 24, lastActive: '2 min', icon: 'groups' },
+    { name: 'Grupo de Jóvenes Emaús', members: 24, lastActive: '2 min', icon: 'groups', link: 'https://chat.whatsapp.com/FukeuiVMNskIAmiZz6ZPEw?mode=gi_c' },
     { name: 'Intercesores Nocturnos', members: 12, lastActive: '15 min', icon: 'volunteer_activism' },
     { name: 'Música & Alabanza', members: 8, lastActive: '1h', icon: 'music_note' },
   ];
@@ -279,8 +323,8 @@ const Community: React.FC = () => {
                   <div className="size-10 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                     <span className="material-symbols-outlined">{g.icon}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{g.name}</p>
+                  <div className="flex-1 min-w-0" onClick={() => g.link && window.open(g.link, '_blank')}>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-primary transition-colors">{g.name}</p>
                     <p className="text-xs text-gray-500">{g.members} miembros</p>
                   </div>
                 </div>
@@ -320,9 +364,16 @@ const Community: React.FC = () => {
 
                       <div className="flex-1">
                         <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.username}</p>
-                        <p className="text-xs text-green-500 font-medium">Cumple el día {day}</p>
+                        {day === new Date().getDate() ? (
+                          <p className="text-xs text-accent-gold font-black animate-pulse">¡Cumple años hoy! 🎂</p>
+                        ) : (
+                          <p className="text-xs text-green-500 font-medium">Cumple el día {day}</p>
+                        )}
                       </div>
-                      <button className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors">
+                      <button
+                        onClick={() => handleOpenGreeting(user)}
+                        className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors font-medium border border-primary/20"
+                      >
                         Saludar
                       </button>
                     </div>
@@ -353,6 +404,73 @@ const Community: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* Greeting Modal */}
+      {greetingModalOpen && selectedUser && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#1a1b26] rounded-3xl w-full max-w-sm p-0 border border-gray-200 dark:border-white/10 shadow-2xl overflow-hidden transform transition-all scale-100">
+
+            {/* Header with Pattern */}
+            <div className="bg-gradient-to-br from-primary via-purple-600 to-indigo-600 p-6 text-center relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+              <div className="relative z-10 flex flex-col items-center gap-3">
+                {selectedUser.avatar_url ? (
+                  <img src={selectedUser.avatar_url} className="size-16 rounded-full border-4 border-white/20 shadow-lg" alt={selectedUser.username} />
+                ) : (
+                  <div className="size-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-bold text-white border-4 border-white/10 shadow-lg">
+                    {selectedUser.username.substring(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <h3 className="text-xl font-bold text-white">
+                  ¡Saluda a {selectedUser.username}!
+                </h3>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Message Preview as Chat Bubble */}
+              <div className="flex gap-3 mb-6">
+                <div className="flex-1">
+                  <div className="bg-gray-100 dark:bg-white/5 rounded-2xl rounded-tl-none p-4 relative">
+                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed italic">
+                      "¡Feliz cumpleaños <span className="font-bold text-primary dark:text-white">{selectedUser.username}</span>! 🎂 Que Dios te bendiga mucho hoy y siempre. 🎉"
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 text-[10px] text-gray-400 font-medium uppercase tracking-wider ml-1">
+                    <span className="material-symbols-outlined text-xs">content_paste</span>
+                    Se copiará al portapapeles
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Box - Subtle */}
+              <div className="flex gap-3 bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5 mb-6">
+                <span className="material-symbols-outlined text-gray-400 shrink-0">info</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
+                  Al ir al grupo, <span className="font-bold text-gray-700 dark:text-gray-200">pega el mensaje</span> en el chat.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <button
+                onClick={handleSendGreeting}
+                className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/25 transition-all transform active:scale-95 flex items-center justify-center gap-2 mb-3"
+              >
+                <span className="material-symbols-outlined">content_copy</span>
+                Copiar e Ir al Grupo
+              </button>
+
+              <button
+                onClick={() => setGreetingModalOpen(false)}
+                className="w-full py-3 text-sm text-gray-500 dark:text-gray-400 font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

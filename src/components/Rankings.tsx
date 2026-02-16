@@ -6,22 +6,37 @@ const Rankings: React.FC = () => {
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [period, setPeriod] = useState<'weekly' | 'all-time'>('weekly');
+
   useEffect(() => {
     fetchRankings();
-  }, []);
+  }, [period]);
 
   const fetchRankings = async () => {
     try {
       setLoading(true);
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url, xp')
-        .order('xp', { ascending: false })
-        .limit(20);
+      let profiles: any[] | null = null;
 
-      if (error) throw error;
+      if (period === 'weekly') {
+        // Fetch from RPC
+        const { data, error } = await supabase.rpc('get_weekly_leaderboard');
+        if (error) {
+          console.error('Error fetching weekly leaderboard:', error);
+          // Fallback to empty or handled error state if RPC doesn't exist yet
+        }
+        profiles = data;
+      } else {
+        // Fetch all time from profiles table
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, xp')
+          .order('xp', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        profiles = data;
+      }
 
       if (profiles) {
         const rankingData: RankingEntry[] = profiles.map((p, index) => ({
@@ -55,9 +70,25 @@ const Rankings: React.FC = () => {
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
       <div className="max-w-4xl mx-auto flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-white text-3xl md:text-4xl font-black leading-tight">Salón de Talentos</h1>
-          <p className="text-[#9e9fb7] text-base md:text-lg">Compite y gana talentos completando tus lecciones bíblicas.</p>
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+          <div>
+            <h1 className="text-white text-3xl md:text-4xl font-black leading-tight">Salón de Talentos</h1>
+            <p className="text-[#9e9fb7] text-base md:text-lg">Compite y gana talentos completando tus lecciones bíblicas.</p>
+          </div>
+          <div className="bg-slate-800/50 p-1 rounded-xl flex gap-1">
+            <button
+              onClick={() => setPeriod('weekly')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${period === 'weekly' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              Semanal
+            </button>
+            <button
+              onClick={() => setPeriod('all-time')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${period === 'all-time' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              Histórico
+            </button>
+          </div>
         </div>
 
         {/* Podium */}

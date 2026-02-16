@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { UserStats, Badge } from '../types';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../services/supabase';
@@ -274,7 +275,7 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
                   <span className="material-symbols-outlined text-white text-3xl">{b.icon}</span>
                 </div>
                 <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-1">{b.name}</h3>
-                <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">Achievement description goes here.</p>
+                <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">{b.description}</p>
                 {b.date && <div className="mt-3 text-xs font-semibold text-primary">Desbloqueado el {b.date}</div>}
                 {!b.unlocked && b.progress !== undefined && (
                   <div className="mt-4">
@@ -298,14 +299,18 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
         )}
 
         {/* Share Modal */}
-        {showShareModal && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
-            <div className="glass-panel rounded-2xl p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
+        {showShareModal && ReactDOM.createPortal(
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4 animate-fade-in" onClick={() => setShowShareModal(false)}>
+            <div className="glass-panel rounded-2xl p-8 max-w-md w-full relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+
+              <div className="flex justify-between items-center mb-6 mt-2">
                 <h3 className="text-2xl font-bold text-white">Compartir Progreso</h3>
-                <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-white">
-                  <span className="material-symbols-outlined">close</span>
-                </button>
               </div>
 
               <div className="bg-slate-800/50 rounded-xl p-6 mb-6 border border-white/10">
@@ -339,14 +344,38 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
               </div>
 
               <button
-                onClick={copyProgressToClipboard}
-                className="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                onClick={() => {
+                  const progressText = `📚 Mi Progreso en JAPP 🙏
+
+👤 ${profile?.username || 'Usuario'}
+🏆 Nivel ${stats.level}
+📚 ${stats.totalXp} Capítulos Leídos
+🔥 ${stats.streak} Días de Racha
+⭐ ${stats.xp} / ${stats.maxXp} XP
+
+¡Sigue creciendo espiritualmente! 🚀`;
+
+                  navigator.clipboard.writeText(progressText).then(() => {
+                    setToastMessage('¡Copiado! Abriendo WhatsApp...');
+                    setShowToast(true);
+                    setTimeout(() => setShowToast(false), 3000);
+                    setShowShareModal(false);
+                    // Redirect to WhatsApp Group
+                    window.open('https://chat.whatsapp.com/FukeuiVMNskIAmiZz6ZPEw?mode=gi_c', '_blank');
+                  });
+                }}
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
               >
-                <span className="material-symbols-outlined">content_copy</span>
-                Copiar al Portapapeles
+                <span className="text-xl">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.95.514 1.765.733 2.793.733H12.035c3.181 0 5.768-2.587 5.768-5.766.001-3.182-2.585-5.769-5.772-5.769zm10.741 5.772c.003 2.522-.843 4.909-2.285 6.877l.006.006 2.511 9.162-9.366-2.458-.291-.144c-1.879 1.026-4.008 1.572-6.195 1.574h-.006c-7.394 0-13.4-6.007-13.4-13.401 0-7.397 5.929-13.4 13.235-13.401 3.535.001 6.917 1.396 9.421 3.901 2.502 2.503 3.844 5.8 3.81 9.324zm-2.022-.29c-.198-.099-1.17-.578-1.352-.644-.181-.066-.312-.099-.444.099-.132.198-.511.644-.627.776-.115.132-.231.148-.429.05-.198-.099-.836-.308-1.592-.983-.591-.527-.991-1.178-1.107-1.376-.116-.198-.012-.305.087-.403.09-.089.198-.231.297-.347.099-.115.132-.198.198-.33.066-.132.033-.247-.017-.347-.05-.099-.445-1.073-.611-1.47-.161-.384-.323-.329-.445-.335-.116-.006-.247-.006-.379-.006-.132 0-.347.05-.528.247-.182.198-.693.677-.693 1.652 0 .975.71 1.916.809 2.048.099.132 1.396 2.132 3.383 2.99 1.986.858 1.986.572 2.349.535.364-.037 1.17-.478 1.335-.94.165-.462.165-.858.116-.94-.05-.082-.181-.132-.379-.231z" />
+                  </svg>
+                </span>
+                Copiar y Compartir en Grupo
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
