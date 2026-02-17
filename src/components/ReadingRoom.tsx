@@ -5,6 +5,7 @@ import { generateQuizQuestion, getChapterContext } from '../services/ai';
 import { fetchDailyChapter, BIBLE_BOOKS_List, getTodayChapterReference, START_DATE } from '@/services/biblePlan';
 import { supabase } from '../services/supabase';
 import { extractHighlightedVerse } from '../services/dailyVerse';
+import WeeklyProgress from './WeeklyProgress';
 
 interface ReadingRoomProps {
   onComplete: (xp: number, data?: { type: 'quiz'; score: number; reference: string }) => void;
@@ -186,36 +187,14 @@ const ReavivadosHub: React.FC<{ onRead: () => void; onReadData: (data: any) => v
 
   const recentReadings = getRecentReadings();
 
-  const getAllPastReadings = () => {
-    const readings = [];
-    const today = new Date();
-    let current = new Date(today);
-    current.setDate(current.getDate() - 1); // Start from yesterday
-
-    while (current >= START_DATE) {
-      const ref = getTodayChapterReference(new Date(current));
-      if (ref) {
-        // Construct reference string since ref.reference might be missing
-        const refString = `${ref.book} ${ref.chapter}`;
-        const normalizedRef = refString.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-        readings.push({
-          ...ref,
-          reference: refString, // Ensure reference property exists
-          date: new Date(current),
-          displayDate: current.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }),
-          fullDate: current.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-          isCompleted: completedReadings.has(normalizedRef)
-        });
-      }
-      current.setDate(current.getDate() - 1);
-    }
-    return readings;
-  };
 
 
+
+
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchHistoryStatus = async () => {
+    setLoadingHistory(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -233,26 +212,57 @@ const ReavivadosHub: React.FC<{ onRead: () => void; onReadData: (data: any) => v
             completed.add(normalized);
           }
         });
-        console.log("Fetched history status:", completed); // Debug log
+
         setCompletedReadings(completed);
       }
     } catch (e) {
       console.error("Error fetching history status", e);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
-  useEffect(() => {
-    if (showHistory) {
-      fetchHistoryStatus();
-    }
-  }, [showHistory]);
+
 
   // Initial fetch to ensure recent readings have correct status
   useEffect(() => {
     fetchHistoryStatus();
   }, []);
 
-  const allHistory = showHistory ? getAllPastReadings() : [];
+  // Optimized Date Formatters to avoid recreation in loop
+  const shortDateFormatter = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  const fullDateFormatter = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const getAllPastReadings = () => {
+    const readings = [];
+    const today = new Date();
+    let current = new Date(today);
+    current.setDate(current.getDate() - 1); // Start from yesterday
+
+    while (current >= START_DATE) {
+      const ref = getTodayChapterReference(new Date(current));
+      if (ref) {
+        // Construct reference string since ref.reference might be missing
+        const refString = `${ref.book} ${ref.chapter}`;
+        const normalizedRef = refString.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        readings.push({
+          ...ref,
+          reference: refString, // Ensure reference property exists
+          date: new Date(current),
+          displayDate: shortDateFormatter.format(current),
+          fullDate: fullDateFormatter.format(current),
+          isCompleted: completedReadings.has(normalizedRef)
+        });
+      }
+      current.setDate(current.getDate() - 1);
+    }
+    return readings;
+  };
+
+  const allHistory = React.useMemo(() => {
+    return showHistory ? getAllPastReadings() : [];
+  }, [showHistory, completedReadings]);
 
   const handleReadingClick = (reading: any) => {
     // It's a past reading
@@ -267,73 +277,31 @@ const ReavivadosHub: React.FC<{ onRead: () => void; onReadData: (data: any) => v
   return (
     <div className="p-4 lg:p-10 max-w-5xl mx-auto flex flex-col gap-8">
       {/* HERO SECTION */}
-      <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e1e2d] rounded-2xl p-8 md:p-12 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <span className="material-symbols-outlined text-9xl text-white">auto_stories</span>
+      <div className="bg-white dark:bg-gradient-to-r dark:from-[#1e3a8a] dark:to-[#1e1e2d] border border-gray-200 dark:border-white/5 rounded-2xl p-8 md:p-12 relative overflow-hidden shadow-xl dark:shadow-2xl transition-colors">
+        <div className="absolute top-0 right-0 p-8 opacity-5 dark:opacity-10 pointer-events-none">
+          <span className="material-symbols-outlined text-9xl text-gray-900 dark:text-white">auto_stories</span>
         </div>
         <div className="relative z-10 max-w-2xl">
-          <div className="flex items-center gap-3 mb-4 text-blue-200">
+          <div className="flex items-center gap-3 mb-4 text-blue-600 dark:text-blue-200">
             <span className="material-symbols-outlined">menu_book</span>
             <span className="uppercase tracking-widest text-xs font-bold">Reavivados por su Palabra</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
             Lectura Diaria
           </h1>
-          <p className="text-lg text-blue-100 mb-8 opacity-90">
+          <p className="text-lg text-gray-600 dark:text-blue-100 mb-8 opacity-90 font-medium">
             Conecta con Dios cada día a través de la lectura diaria de la Biblia.
           </p>
         </div>
       </div>
 
       {/* WEEKLY PROGRESS */}
-      <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-8 shadow-sm dark:shadow-none">
-        <h3 className="font-serif text-2xl font-bold text-gray-900 dark:text-white mb-6">Progreso Semanal</h3>
-        <div className="flex justify-between items-center max-w-3xl mx-auto">
-          {days.map((d, i) => {
-            // Logic:
-            // If we have a record for this day (weeklyProgress[i] is true) -> COMPLETED
-            // If not completed AND it is today -> ACTIVE
-            // If not completed AND it is past -> MISSED (Gray outline or Red dot?) -> Let's keep it simple: just empty
-            // If future -> UPCOMING
-
-            const isDone = weeklyProgress[i];
-            const isToday = i === currentDayIndex;
-            const isPast = i < currentDayIndex;
-
-            let status = 'upcoming';
-            if (isDone) {
-              status = 'completed';
-            } else if (isToday) {
-              status = 'active';
-            } else if (isPast) {
-              status = 'missed';
-            }
-
-            return (
-              <div key={i} className="flex flex-col items-center gap-3">
-                <span className="text-xs font-bold text-gray-500">{d}</span>
-                <div
-                  className={`size-10 md:size-12 rounded-full flex items-center justify-center border-2 transition-all 
-                    ${status === 'completed' ? 'bg-accent-gold border-accent-gold text-black shadow-lg shadow-yellow-500/20' :
-                      status === 'active' ? 'bg-primary border-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-110' :
-                        status === 'missed' ? 'bg-transparent border-gray-300 dark:border-gray-600' :
-                          'bg-gray-100 dark:bg-[#292938] border-gray-200 dark:border-[#3d3d52]'
-                    }`}
-                >
-                  {status === 'completed' && <span className="material-symbols-outlined font-bold">check</span>}
-                  {status === 'active' && <span className="material-symbols-outlined">play_arrow</span>}
-                  {status === 'missed' && <span className="size-2 bg-red-400 rounded-full"></span>}
-                  {status === 'upcoming' && <span className="size-2 bg-gray-500 rounded-full opacity-50"></span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-8 flex justify-between items-center text-sm text-gray-400 px-4">
-          <span>{Math.round((completedCount / 7) * 100)}% Completado</span>
-          <span className="text-accent-gold font-bold">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
-        </div>
-      </div>
+      <WeeklyProgress
+        progress={weeklyProgress}
+        completedCount={completedCount}
+        days={days}
+        currentDayIndex={currentDayIndex}
+      />
 
 
 
@@ -440,7 +408,24 @@ const ReavivadosHub: React.FC<{ onRead: () => void; onReadData: (data: any) => v
 
             {/* List */}
             <div className="p-4 overflow-y-auto space-y-3">
-              {allHistory.length > 0 ? (
+              {loadingHistory ? (
+                <div className="space-y-3 animate-pulse">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="bg-gray-50 dark:bg-[#14151f] border border-transparent rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4 w-full">
+                        {/* Icon Skeleton */}
+                        <div className="size-10 rounded-full bg-gray-200 dark:bg-white/5"></div>
+                        <div className="flex-1 space-y-2">
+                          {/* Title Skeleton */}
+                          <div className="h-4 bg-gray-200 dark:bg-white/5 rounded w-32"></div>
+                          {/* Date Skeleton */}
+                          <div className="h-3 bg-gray-200 dark:bg-white/5 rounded w-24"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : allHistory.length > 0 ? (
                 allHistory.map((reading, idx) => (
                   <div
                     key={idx}
@@ -810,25 +795,26 @@ const ReadingView: React.FC<{
 
         {/* Reavivados Header Banner */}
         {/* Reavivados Header Banner */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e1e2d] to-[#16161f] border border-white/5 shadow-2xl p-6">
-          {/* Decorative Background Icon */}
-          <div className="absolute -right-6 -bottom-6 opacity-[0.03] pointer-events-none">
-            <span className="material-symbols-outlined text-[150px]">auto_stories</span>
+        {/* Reavivados Header Banner */}
+        <section className="relative overflow-hidden rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#1e1e2d] dark:to-[#16161f] border border-gray-200 dark:border-white/5 shadow-xl dark:shadow-2xl p-6">
+          {/* Decorative Background Icon - Dark Mode Only or Sublime in Light */}
+          <div className="absolute -right-6 -bottom-6 opacity-5 dark:opacity-[0.03] pointer-events-none">
+            <span className="material-symbols-outlined text-[150px] text-gray-900 dark:text-white">auto_stories</span>
           </div>
 
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="bg-blue-600/20 p-3 rounded-xl text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-1 ring-blue-500/30">
+              <div className="bg-blue-50 dark:bg-blue-600/20 p-3 rounded-xl text-blue-600 dark:text-blue-400 shadow-sm dark:shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-1 ring-blue-500/10 dark:ring-blue-500/30">
                 <span className="material-symbols-outlined text-3xl">auto_stories</span>
               </div>
               <div>
-                <h2 className="text-white font-black text-xl md:text-2xl leading-tight tracking-tight">Reavivados Por Su Palabra</h2>
-                <p className="text-gray-400 text-sm font-medium mt-1">Lectura diaria para tu crecimiento espiritual</p>
+                <h2 className="text-gray-900 dark:text-white font-black text-xl md:text-2xl leading-tight tracking-tight">Reavivados Por Su Palabra</h2>
+                <p className="text-gray-600 dark:text-gray-400 text-sm font-medium mt-1">Lectura diaria para tu crecimiento espiritual</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-bold shadow-sm self-start md:self-auto">
-              <span className="material-symbols-outlined text-blue-400 text-lg">calendar_today</span>
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 backdrop-blur-md px-4 py-2 rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 text-sm font-bold shadow-sm self-start md:self-auto">
+              <span className="material-symbols-outlined text-blue-500 dark:text-blue-400 text-lg">calendar_today</span>
               <span>{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
           </div>
@@ -1130,8 +1116,8 @@ const ReadingView: React.FC<{
             </div>
           )}
         </section>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

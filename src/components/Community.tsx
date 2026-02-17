@@ -8,38 +8,19 @@ import { Prayer, PrayerComment } from '../types';
 import { useUser } from '../contexts/UserContext';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useAdmin } from '../hooks/useAdmin';
 
 const Community: React.FC = () => {
   const { profile } = useUser();
+  const { isAdmin } = useAdmin();
+
+  // Birthday State
   const [birthdays, setBirthdays] = useState<UserProfile[]>([]);
   const [loadingBirthdays, setLoadingBirthdays] = useState(true);
 
   // Greeting Modal State
   const [greetingModalOpen, setGreetingModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-
-  const handleOpenGreeting = (user: UserProfile) => {
-    setSelectedUser(user);
-    setGreetingModalOpen(true);
-  };
-
-  const handleSendGreeting = () => {
-    if (!selectedUser) return;
-    const message = `¡Feliz cumpleaños *${selectedUser.username}*! 🎂 Que Dios te bendiga mucho hoy y siempre. 🎉`;
-
-    // Copy to clipboard
-    navigator.clipboard.writeText(message).then(() => {
-      // Open Group Link (Grupo de Jóvenes Emaús)
-      const targetGroup = groups.find(g => g.name.includes('Emaús')) || groups[0];
-      if (targetGroup?.link) {
-        window.open(targetGroup.link, '_blank');
-      }
-      setGreetingModalOpen(false);
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-      // Fallback or alert if needed
-    });
-  };
 
   // Prayer Wall State
   const [prayers, setPrayers] = useState<Prayer[]>([]);
@@ -48,6 +29,12 @@ const Community: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
   const [visibleComments, setVisibleComments] = useState<{ [key: string]: boolean }>({});
+
+  const groups = [
+    { name: 'Grupo de Jóvenes Emaús', members: 24, lastActive: '2 min', icon: 'groups', link: 'https://chat.whatsapp.com/FukeuiVMNskIAmiZz6ZPEw?mode=gi_c' },
+    { name: 'Intercesores Nocturnos', members: 12, lastActive: '15 min', icon: 'volunteer_activism' },
+    { name: 'Música & Alabanza', members: 8, lastActive: '1h', icon: 'music_note' },
+  ];
 
   const fetchPrayers = async () => {
     try {
@@ -97,39 +84,63 @@ const Community: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchPrayers();
-  }, [profile?.id]);
+  const handleOpenGreeting = (user: UserProfile) => {
+    setSelectedUser(user);
+    setGreetingModalOpen(true);
+  };
 
-  /* Smart Navigation: Open Greeting Modal if URL param exists */
-  const location = useLocation();
+  const handleSendGreeting = () => {
+    if (!selectedUser) return;
+    const message = `¡Feliz cumpleaños *${selectedUser.username}*! 🎂 Que Dios te bendiga mucho hoy y siempre. 🎉`;
 
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const greetUserId = searchParams.get('greet_user');
-
-    if (greetUserId && birthdays.length > 0) {
-      const userToGreet = birthdays.find(u => u.id === greetUserId);
-      if (userToGreet) {
-        handleOpenGreeting(userToGreet);
+    // Copy to clipboard
+    navigator.clipboard.writeText(message).then(() => {
+      // Open Group Link (Grupo de Jóvenes Emaús)
+      const targetGroup = groups.find(g => g.name.includes('Emaús')) || groups[0];
+      if (targetGroup?.link) {
+        window.open(targetGroup.link, '_blank');
       }
-    }
-  }, [location.search, birthdays]);
+      setGreetingModalOpen(false);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  };
 
-  useEffect(() => {
-    const fetchBirthdays = async () => {
-      try {
-        const { data, error } = await supabase.rpc('get_birthdays_of_month');
+  // Delete Confirmation State
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    type: 'prayer' | 'comment';
+    id: string;
+    parentId?: string; // For comments (prayerId)
+  }>({ isOpen: false, type: 'prayer', id: '' });
+
+  const confirmDelete = async () => {
+    const { type, id, parentId } = deleteConfirmation;
+
+    try {
+      if (type === 'prayer') {
+        const { error } = await supabase.from('prayers').delete().eq('id', id);
         if (error) throw error;
-        setBirthdays(data || []);
-      } catch (error) {
-        console.error('Error fetching birthdays:', error);
-      } finally {
-        setLoadingBirthdays(false);
+        setPrayers(prev => prev.filter(p => p.id !== id));
+      } else if (type === 'comment' && parentId) {
+        const { error } = await supabase.from('prayer_comments').delete().eq('id', id);
+        if (error) throw error;
+        setPrayers(prev => prev.map(p => {
+          if (p.id === parentId) {
+            return {
+              ...p,
+              prayer_comments: p.prayer_comments.filter(c => c.id !== id)
+            };
+          }
+          return p;
+        }));
       }
-    };
-    fetchBirthdays();
-  }, []);
+      setDeleteConfirmation({ isOpen: false, type: 'prayer', id: '' });
+    } catch (error) {
+      console.error('Error deleting:', error);
+      alert('Error eliminando. Verifica tus permisos.');
+    }
+  };
 
   const handlePostPrayer = async () => {
     if (!newPrayer.trim() || !profile) return;
@@ -152,7 +163,6 @@ const Community: React.FC = () => {
   const handleAmen = async (prayer: Prayer) => {
     if (!profile) return;
 
-    // Optimistic Update could go here, but for simplicity we fetch after
     try {
       if (prayer.user_has_amened) {
         await supabase.from('prayer_amens').delete().match({ prayer_id: prayer.id, user_id: profile.id });
@@ -187,13 +197,47 @@ const Community: React.FC = () => {
     }
   };
 
-  const groups = [
-    { name: 'Grupo de Jóvenes Emaús', members: 24, lastActive: '2 min', icon: 'groups', link: 'https://chat.whatsapp.com/FukeuiVMNskIAmiZz6ZPEw?mode=gi_c' },
-    { name: 'Intercesores Nocturnos', members: 12, lastActive: '15 min', icon: 'volunteer_activism' },
-    { name: 'Música & Alabanza', members: 8, lastActive: '1h', icon: 'music_note' },
-  ];
+  const handleDeletePrayer = (prayerId: string) => {
+    setDeleteConfirmation({ isOpen: true, type: 'prayer', id: prayerId });
+  };
 
+  const handleDeleteComment = (commentId: string, prayerId: string) => {
+    setDeleteConfirmation({ isOpen: true, type: 'comment', id: commentId, parentId: prayerId });
+  };
 
+  // Effects
+  useEffect(() => {
+    fetchPrayers();
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const fetchBirthdays = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_birthdays_of_month');
+        if (error) throw error;
+        setBirthdays(data || []);
+      } catch (error) {
+        console.error('Error fetching birthdays:', error);
+      } finally {
+        setLoadingBirthdays(false);
+      }
+    };
+    fetchBirthdays();
+  }, []);
+
+  /* Smart Navigation: Open Greeting Modal if URL param exists */
+  const location = useLocation();
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const greetUserId = searchParams.get('greet_user');
+
+    if (greetUserId && birthdays.length > 0) {
+      const userToGreet = birthdays.find(u => u.id === greetUserId);
+      if (userToGreet) {
+        handleOpenGreeting(userToGreet);
+      }
+    }
+  }, [location.search, birthdays]);
 
   return (
     <div className="p-4 lg:p-10 animate-fade-in-up">
@@ -236,7 +280,7 @@ const Community: React.FC = () => {
                 </div>
               ) : prayers.length > 0 ? (
                 prayers.map((p) => (
-                  <div key={p.id} className="bg-white dark:bg-[#1a1b26] p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none">
+                  <div key={p.id} className="bg-white dark:bg-[#1a1b26] p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none relative group">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
                         {p.profiles?.avatar_url ? (
@@ -249,6 +293,17 @@ const Community: React.FC = () => {
                           <p className="text-xs text-gray-500">Hace {formatDistanceToNow(new Date(p.created_at), { addSuffix: true, locale: es })}</p>
                         </div>
                       </div>
+
+                      {/* Delete Button for Admin or Owner */}
+                      {(isAdmin || p.user_id === profile?.id) && (
+                        <button
+                          onClick={() => handleDeletePrayer(p.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Eliminar publicación"
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      )}
                     </div>
                     <p className="text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-wrap">{p.content}</p>
                     <div className="flex gap-6 border-t border-gray-200 dark:border-white/5 pt-4">
@@ -271,7 +326,7 @@ const Community: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/5 animate-fade-in-down">
                         <div className="space-y-3 mb-4 max-h-60 overflow-y-auto custom-scrollbar">
                           {p.prayer_comments?.map(comment => (
-                            <div key={comment.id} className="flex gap-3">
+                            <div key={comment.id} className="flex gap-3 group/comment relative">
                               <div className="size-8 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0 flex items-center justify-center text-xs font-bold">
                                 {comment.profiles?.avatar_url ? (
                                   <img src={comment.profiles.avatar_url} className="size-8 rounded-full" alt="C" />
@@ -283,6 +338,17 @@ const Community: React.FC = () => {
                                 <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">{comment.profiles?.username}</p>
                                 <p className="text-sm text-gray-700 dark:text-gray-300">{comment.content}</p>
                               </div>
+
+                              {/* Delete Comment Button */}
+                              {(isAdmin || comment.user_id === profile?.id) && (
+                                <button
+                                  onClick={() => handleDeleteComment(comment.id, p.id)}
+                                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover/comment:opacity-100 transition-opacity"
+                                  title="Eliminar comentario"
+                                >
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -346,39 +412,49 @@ const Community: React.FC = () => {
               </div>
             ) : birthdays.length > 0 ? (
               <div className="flex flex-col gap-4">
-                {birthdays.map((user) => {
-                  const birthDate = new Date(user.birth_date!);
-                  // Adjust for timezone if necessary, but just displaying Day is usually safe enough provided UTC handling
-                  // Using getUTCDate to avoid timezone shifts
-                  const day = birthDate.getUTCDate();
+                {birthdays
+                  .filter(user => {
+                    const birthDate = new Date(user.birth_date!);
+                    const day = birthDate.getUTCDate();
+                    const currentDay = new Date().getDate();
+                    return day >= currentDay;
+                  })
+                  .map((user) => {
+                    const birthDate = new Date(user.birth_date!);
+                    const day = birthDate.getUTCDate();
 
-                  return (
-                    <div key={user.id} className="flex items-center gap-3">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.username} className="size-10 rounded-full object-cover border border-white/10" />
-                      ) : (
-                        <div className="size-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                          {user.username.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.username}</p>
-                        {day === new Date().getDate() ? (
-                          <p className="text-xs text-accent-gold font-black animate-pulse">¡Cumple años hoy! 🎂</p>
+                    return (
+                      <div key={user.id} className="flex items-center gap-3 animate-fade-in">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt={user.username} className="size-10 rounded-full object-cover border border-white/10" />
                         ) : (
-                          <p className="text-xs text-green-500 font-medium">Cumple el día {day}</p>
+                          <div className="size-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
                         )}
+
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user.username}</p>
+                          {day === new Date().getDate() ? (
+                            <p className="text-xs text-accent-gold font-black animate-pulse">¡Cumple años hoy! 🎂</p>
+                          ) : (
+                            <p className="text-xs text-green-500 font-medium">Cumple el día {day}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleOpenGreeting(user)}
+                          className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors font-medium border border-primary/20"
+                        >
+                          Saludar
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleOpenGreeting(user)}
-                        className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors font-medium border border-primary/20"
-                      >
-                        Saludar
-                      </button>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                {birthdays.filter(u => new Date(u.birth_date!).getUTCDate() >= new Date().getDate()).length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                    No hay más cumpleaños este mes.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
@@ -466,6 +542,42 @@ const Community: React.FC = () => {
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation.isOpen && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#1a1b26] rounded-2xl w-full max-w-sm p-6 border border-gray-200 dark:border-white/10 shadow-2xl transform transition-all scale-100">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="size-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center text-red-500 dark:text-red-400 mb-2">
+                <span className="material-symbols-outlined text-3xl">delete_forever</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  ¿Eliminar {deleteConfirmation.type === 'prayer' ? 'publicación' : 'comentario'}?
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Esta acción no se puede deshacer. ¿Deseas continuar?
+                </p>
+              </div>
+              <div className="flex gap-3 w-full mt-2">
+                <button
+                  onClick={() => setDeleteConfirmation({ isOpen: false, type: 'prayer', id: '' })}
+                  className="flex-1 py-2.5 rounded-xl text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
         </div>,

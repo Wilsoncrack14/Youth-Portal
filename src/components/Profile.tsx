@@ -269,20 +269,20 @@ const Profile: React.FC<ProfileProps> = ({ stats, badges }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {badges.map((b) => (
-              <div key={b.id} className={`bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 relative group transition-all duration-300 ${!b.unlocked ? 'opacity-50 grayscale' : 'hover:bg-gray-50 dark:hover:bg-white/5 border-primary/30'}`}>
+              <div key={b.id} className={`bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-xl p-5 relative group transition-all duration-300 ${!b.unlocked ? 'grayscale opacity-75 hover:opacity-100 hover:grayscale-0' : 'hover:bg-gray-50 dark:hover:bg-white/5 border-primary/30'}`}>
                 {b.unlocked && <div className="absolute top-3 right-3 text-primary"><span className="material-symbols-outlined text-lg">check_circle</span></div>}
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${b.icon === 'lock' ? 'bg-gray-200 dark:bg-gray-800' : 'bg-gradient-to-br from-primary to-purple-500'}`}>
-                  <span className="material-symbols-outlined text-white text-3xl">{b.icon}</span>
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${b.icon === 'lock' ? 'bg-gray-100 dark:bg-gray-800' : 'bg-gradient-to-br from-primary to-purple-500 shadow-primary/30'}`}>
+                  <span className={`material-symbols-outlined text-3xl ${b.icon === 'lock' ? 'text-gray-400 dark:text-gray-500' : 'text-white'}`}>{b.icon}</span>
                 </div>
                 <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-1">{b.name}</h3>
-                <p className="text-gray-500 dark:text-slate-400 text-xs leading-relaxed">{b.description}</p>
-                {b.date && <div className="mt-3 text-xs font-semibold text-primary">Desbloqueado el {b.date}</div>}
+                <p className="text-gray-600 dark:text-slate-400 text-xs leading-relaxed font-medium">{b.description}</p>
+                {b.date && <div className="mt-3 text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md w-fit">Desbloqueado el {b.date}</div>}
                 {!b.unlocked && b.progress !== undefined && (
                   <div className="mt-4">
-                    <div className="w-full bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-purple-500 h-full" style={{ width: `${(b.progress / (b.total || 1)) * 100}%` }}></div>
+                    <div className="w-full bg-gray-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden border border-gray-200 dark:border-transparent">
+                      <div className="bg-primary/50 dark:bg-purple-500 h-full" style={{ width: `${(b.progress / (b.total || 1)) * 100}%` }}></div>
                     </div>
-                    <p className="text-[10px] text-right text-gray-500 dark:text-slate-400 mt-1">{b.progress}/{b.total} Completado</p>
+                    <p className="text-[10px] text-right text-gray-500 dark:text-slate-400 mt-1 font-bold">{b.progress}/{b.total} Completado</p>
                   </div>
                 )}
               </div>

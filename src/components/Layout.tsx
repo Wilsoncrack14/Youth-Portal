@@ -15,6 +15,7 @@ import { useUser } from '../contexts/UserContext';
 import { useAdmin } from '../hooks/useAdmin';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
   const location = useLocation();
@@ -27,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
 
   // Simple mapping: /dashboard -> 'dashboard', / -> 'dashboard'
   const currentPath = location.pathname.substring(1) || 'dashboard';
+  const { theme, toggleTheme } = useTheme();
 
   /* Notification State */
   const { isAdmin } = useAdmin();
@@ -47,8 +49,35 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
       .limit(20);
 
     if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter((n: any) => !n.is_read).length);
+      const today = new Date().toDateString();
+      const expiredIds: string[] = [];
+
+      const validNotifications = data.filter((n: any) => {
+        if (n.type === 'birthday') {
+          // Check if notification is from a previous day
+          const notificationDate = new Date(n.created_at).toDateString();
+          if (notificationDate !== today) {
+            expiredIds.push(n.id);
+            return false; // Filter out
+          }
+        }
+        return true;
+      });
+
+      setNotifications(validNotifications);
+      setUnreadCount(validNotifications.filter((n: any) => !n.is_read).length);
+
+      // Clean up expired notifications
+      if (expiredIds.length > 0) {
+        // Fire and forget cleanup
+        supabase
+          .from('notifications')
+          .delete()
+          .in('id', expiredIds)
+          .then(({ error }) => {
+            if (error) console.error('Error auto-cleaning notifications:', error);
+          });
+      }
     }
   };
 
@@ -208,7 +237,17 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative z-50">
+            <div className="relative z-50 flex items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#292938] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              >
+                <span className="material-symbols-outlined">
+                  {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                </span>
+              </button>
+
               <button
                 className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#292938] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}

@@ -94,9 +94,22 @@ const BibleVerseModal: React.FC<BibleVerseModalProps> = ({ isOpen, onClose, refe
                             {error}
                         </div>
                     ) : (
-                        <p className="text-gray-300 text-lg leading-relaxed font-serif whitespace-pre-wrap">
-                            {text}
-                        </p>
+                        <div className="text-gray-300 text-lg leading-relaxed font-serif">
+                            {(() => {
+                                if (!text) return null;
+                                // Split by verse numbers like [1], [2], etc.
+                                const parts = text.split(/\[(\d+)\]/);
+                                return parts.map((part, index) => {
+                                    if (part.match(/^\d+$/)) {
+                                        return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
+                                    } else if (part.trim() === "") {
+                                        return null;
+                                    } else {
+                                        return <span key={index} className="hover:bg-white/5 transition-colors rounded px-0.5">{part}</span>;
+                                    }
+                                });
+                            })()}
+                        </div>
                     )}
                 </div>
 

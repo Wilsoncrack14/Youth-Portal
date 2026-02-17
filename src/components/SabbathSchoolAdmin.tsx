@@ -117,7 +117,7 @@ const WeekUploader: React.FC<{
 
 
             const { data: { session } } = await supabase.auth.getSession();
-            console.log("Session present:", !!session);
+
 
             if (!session?.access_token) throw new Error('No hay sesión activa');
 
@@ -131,7 +131,7 @@ const WeekUploader: React.FC<{
 
             if (error) throw error;
 
-            console.log("AI Response:", data);
+
 
             if (data.error) {
                 throw new Error(data.error);
@@ -140,7 +140,7 @@ const WeekUploader: React.FC<{
             if (data.data) {
                 // If we got data back for review
                 const extractedDays = data.data.weeks?.[0]?.days || [];
-                console.log(`Extracted ${extractedDays.length} days:`, extractedDays.map((d: any) => d.day));
+
 
                 setGeneratedContent(data.data);
                 setStatus(`✅ IA completada. Extraídos ${extractedDays.length}/7 días. Revisa y guarda.`);
@@ -161,7 +161,7 @@ const WeekUploader: React.FC<{
     };
 
     const handleSaveAIContent = async () => {
-        console.log("💾 handleSaveAIContent INICIADO", generatedContent);
+
         if (!generatedContent || !generatedContent.weeks) {
             console.error("❌ No hay contenido generado o semanas indefinidas");
             return;
@@ -170,11 +170,11 @@ const WeekUploader: React.FC<{
         try {
             setUploading(true);
             setStatus('💾 Guardando en base de datos...');
-            console.log("🔄 Procesando semanas:", generatedContent.weeks.length);
+
 
             // We assume 1 week per PDF for now, but structure supports multiple
             for (const genWeek of generatedContent.weeks) {
-                console.log("  ➡️ Procesando semana, verso:", genWeek.memoryVerse);
+
                 // Insert/Update week details (memory verse might have been extracted)
                 if (genWeek.memoryVerse) {
                     const { error: weekError } = await supabase
@@ -186,11 +186,11 @@ const WeekUploader: React.FC<{
                 }
 
                 let lessonsCreated = 0;
-                console.log("  ➡️ Insertando días:", genWeek.days.length);
+
 
                 // Insert daily lessons
                 for (const day of genWeek.days) {
-                    console.log("    📅 Guardando día:", day.day);
+
 
                     // Use UPSERT to update if exists, insert if not (avoids RLS delete permission issues)
                     const { error: lessonError } = await supabase
@@ -210,12 +210,12 @@ const WeekUploader: React.FC<{
                         console.error('❌ Error inserting lesson:', lessonError);
                         throw lessonError;
                     }
-                    console.log("    ✅ Día guardado:", day.day);
+
                     lessonsCreated++;
                 }
             }
 
-            console.log("🎉 Guardado completado con éxito");
+
             setStatus('✅ ¡Contenido guardado exitosamente!');
             setGeneratedContent(null); // Clear review
             onUpdate(); // Refresh parent
@@ -685,7 +685,7 @@ const SabbathSchoolAdmin: React.FC = () => {
 
                 // Process PDF with AI
                 const { data: { session } } = await supabase.auth.getSession();
-                console.log("Session present:", !!session);
+
 
                 if (!session?.access_token) throw new Error('No hay sesión activa');
 

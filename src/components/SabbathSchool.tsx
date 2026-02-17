@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'; // keeping just in case, though 
 import BibleVerseModal from './BibleVerseModal';
 // import DailyLessonEditor from './DailyLessonEditor'; // Removed
 import { generateQuizQuestion, generateLessonSummary, getSabbathContext } from '../services/ai';
+import WeeklyProgress from './WeeklyProgress';
 
 import { extractHighlightedVerse } from '../services/dailyVerse';
 
@@ -724,11 +725,11 @@ const SabbathSchool: React.FC = () => {
                 )}
 
                 {/* HERO SECTION - MATCHING READINGROOM */}
-                <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e1e2d] rounded-2xl p-6 md:p-12 relative overflow-hidden shadow-2xl min-h-[300px] flex flex-col justify-center">
+                <div className="bg-white dark:bg-gradient-to-r dark:from-[#1e3a8a] dark:to-[#1e1e2d] border border-gray-200 dark:border-white/5 rounded-2xl p-6 md:p-12 relative overflow-hidden shadow-xl dark:shadow-2xl min-h-[300px] flex flex-col justify-center transition-colors">
 
-                    {/* Background Image if available */}
+                    {/* Background Image if available - Dark mode only or overlay for light? Let's keep it responsive if possible or hidden in light mode depending on look. For now, let's keep it visible but maybe adjust opacity in light for a subtle effect or just hide it to be clean. Let's hide in light mode for the "clean" look user liked in ReadingRoom. */}
                     {selectedQuarter?.cover_image_url && !selectedWeek && (
-                        <div className="absolute inset-0 z-0">
+                        <div className="absolute inset-0 z-0 hidden dark:block">
                             <img
                                 src={selectedQuarter.cover_image_url}
                                 alt="Cover"
@@ -738,99 +739,49 @@ const SabbathSchool: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none z-0">
-                        <span className="material-symbols-outlined text-9xl text-white">school</span>
+                    <div className="absolute top-0 right-0 p-8 opacity-5 dark:opacity-10 pointer-events-none z-0">
+                        <span className="material-symbols-outlined text-9xl text-gray-900 dark:text-white">school</span>
                     </div>
 
                     <div className="relative z-10 max-w-3xl">
-                        <div className="flex items-center gap-3 mb-4 text-blue-200">
+                        <div className="flex items-center gap-3 mb-4 text-blue-600 dark:text-blue-200">
                             <span className="material-symbols-outlined">menu_book</span>
                             <span className="uppercase tracking-widest text-xs font-bold">Escuela Sabática</span>
                         </div>
 
-                        <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight drop-shadow-2xl">
+                        <h1 className="text-2xl md:text-5xl font-black text-gray-900 dark:text-white mb-4 md:mb-6 leading-tight drop-shadow-sm dark:drop-shadow-2xl">
                             {!selectedQuarter ? 'Lección Semanal' :
                                 !selectedWeek ? selectedQuarter.title :
                                     selectedWeek.title}
                         </h1>
 
-                        {/* Quarter Description (Only showing when just Quarter is selected, not specific week) */}
-                        {selectedQuarter && !selectedWeek && (
-                            <p className="text-gray-100 text-lg mb-8 leading-relaxed max-w-2xl drop-shadow-md font-medium">
-                                {selectedQuarter.description}
-                            </p>
-                        )}
+                        {/* Quarter Description (Always show description or fallback) */}
+                        <p className="text-gray-600 dark:text-blue-100 text-lg mb-8 leading-relaxed max-w-2xl font-medium opacity-90">
+                            {selectedWeek
+                                ? "Estudia la lección de esta semana y fortalece tu fe a través de las Escrituras."
+                                : (selectedQuarter?.description || "Explora las lecciones trimestrales de la Escuela Sabática.")}
+                        </p>
 
 
                     </div>
 
-                    {/* WEEKLY PROGRESS - HIGH CONTRAST */}
-                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-10 shadow-lg relative overflow-hidden mx-auto max-w-4xl w-full">
-                        {/* Subtle glow effect */}
-                        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none"></div>
+                </div>
 
-                        <h3 className="font-serif text-3xl font-bold text-white mb-8 tracking-tight drop-shadow-md">Progreso Semanal</h3>
-                        {currentWeekInfo && (
-                            <div className="mb-8 text-sm text-blue-200 font-medium tracking-wide uppercase opacity-80 border-b border-white/10 pb-4 inline-block pr-8">
-                                {currentWeekInfo.quarterTitle} • Semana {currentWeekInfo.weekNumber}
-                            </div>
-                        )}
-                        <div className="flex justify-between items-center max-w-4xl mx-auto px-2">
-                            {['S', 'D', 'L', 'M', 'M', 'J', 'V'].map((day, index) => {
-                                const todayDay = new Date().getDay(); // 0=Sun, 6=Sat
-                                const isToday = ((index + 6) % 7) === todayDay;
-                                const isCompleted = weeklyProgress[index];
-
-                                let status = 'upcoming';
-                                if (isCompleted) {
-                                    status = 'completed';
-                                } else if (isToday) {
-                                    status = 'active';
-                                } else if (!isCompleted && !isToday) {
-                                    const currentDayIndex = (todayDay + 1) % 7;
-                                    if (index < currentDayIndex) status = 'missed';
-                                }
-
-                                return (
-                                    <div key={index} className="flex flex-col items-center gap-4 relative group/day">
-                                        <span className={`text-xs font-bold tracking-widest ${isToday ? 'text-blue-200' : 'text-gray-400'}`}>{day}</span>
-
-                                        {/* Tooltip for Summary */}
-                                        <div className="absolute bottom-full mb-3 w-48 p-3 bg-gray-900/95 backdrop-blur-md text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/day:opacity-100 group-hover/day:visible transition-all z-20 pointer-events-none text-center border border-white/10">
-                                            {(() => {
-                                                const dayMap = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-                                                const dayName = dayMap[index];
-                                                const lesson = dailyLessons.find(l => l.day === dayName);
-                                                return lesson?.summary || "Sin resumen disponible";
-                                            })()}
-                                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45 border-r border-b border-white/10"></div>
-                                        </div>
-
-                                        <div className={`size-10 md:size-14 rounded-full flex items-center justify-center border transition-all cursor-help relative
-                                        ${status === 'completed' ? 'bg-blue-500 border-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' :
-                                                status === 'active' ? 'bg-blue-600/20 border-blue-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-pulse' :
-                                                    status === 'missed' ? 'bg-transparent border-red-500/30 text-gray-500' :
-                                                        'bg-white/5 border-white/10 text-gray-500'}
-                                     `}>
-                                            {status === 'completed' && <span className="material-symbols-outlined text-lg">check</span>}
-                                            {status === 'active' && <span className="material-symbols-outlined text-xl">play_arrow</span>}
-                                            {status === 'missed' && <span className="size-2 bg-red-400/50 rounded-full"></span>}
-                                            {status === 'upcoming' && <span className="size-2 bg-white/20 rounded-full"></span>}
-
-                                            {/* Glow effect for active/completed */}
-                                            {(status === 'completed' || status === 'active') && (
-                                                <div className="absolute inset-0 rounded-full bg-blue-400/20 blur-md -z-10"></div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="mt-10 flex justify-between items-center text-sm px-4 border-t border-white/5 pt-6">
-                            <span className="text-gray-400 font-medium">{Math.round((completedCount / 7) * 100)}% Completado</span>
-                            <span className="text-yellow-400 font-bold tracking-wide shadow-black-sm">{completedCount > 0 ? "¡Vas bien!" : "¡Comienza hoy!"}</span>
-                        </div>
-                    </div>
+                {/* WEEKLY PROGRESS */}
+                <div className="animate-fade-in-up">
+                    <WeeklyProgress
+                        title="Progreso Semanal"
+                        subtitle={currentWeekInfo ? `${currentWeekInfo.quarterTitle} • Semana ${currentWeekInfo.weekNumber}` : undefined}
+                        days={['S', 'D', 'L', 'M', 'M', 'J', 'V']}
+                        progress={weeklyProgress}
+                        completedCount={completedCount}
+                        currentDayIndex={DAYS.indexOf(selectedDay)}
+                        onClickDay={(index) => {
+                            if (DAYS[index]) {
+                                setSelectedDay(DAYS[index]);
+                            }
+                        }}
+                    />
                 </div>
 
                 {/* MAIN CONTENT AREA */}
@@ -1232,7 +1183,6 @@ const BibleTextParser: React.FC<{
 };
 
 // Daily Lesson View Component
-// Daily Lesson View Component
 const DailyLessonView: React.FC<{
     lesson: DailyLesson;
     onVerseClick?: (ref: string) => void;
@@ -1252,16 +1202,16 @@ const DailyLessonView: React.FC<{
     const displayedVerses = expandVerses ? verses : verses.slice(0, VISIBLE_COUNT);
 
     return (
-        <div className="prose prose-invert max-w-none animate-fade-in relative group break-words overflow-x-hidden">
+        <div className="prose dark:prose-invert max-w-none animate-fade-in relative group break-words overflow-x-hidden">
             <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <span className="w-1 h-8 bg-primary rounded-full"></span>
                     {lesson.title}
                 </h3>
                 {isAdmin && onEdit && (
                     <button
                         onClick={onEdit}
-                        className="bg-[#2a2b3d] hover:bg-primary text-white p-2 rounded-lg transition-colors flex items-center gap-2 text-sm shadow opacity-50 group-hover:opacity-100"
+                        className="bg-gray-100 dark:bg-[#2a2b3d] hover:bg-primary text-gray-900 dark:text-white hover:text-white p-2 rounded-lg transition-colors flex items-center gap-2 text-sm shadow opacity-50 group-hover:opacity-100"
                         title="Editar esta lección"
                     >
                         <span className="material-symbols-outlined text-lg">edit_note</span>
@@ -1270,18 +1220,18 @@ const DailyLessonView: React.FC<{
                 )}
             </div>
 
-            <div className="text-gray-300 mb-8 text-lg leading-relaxed font-light">
+            <div className="text-gray-800 dark:text-gray-300 mb-8 text-lg leading-relaxed font-light">
                 <BibleTextParser text={lesson.content} onVerseClick={onVerseClick} />
             </div>
 
             {verses.length > 0 && (
-                <div className="bg-primary/10 border border-primary/20 rounded-xl p-5 mb-8">
+                <div className="bg-blue-50 dark:bg-primary/10 border border-blue-100 dark:border-primary/20 rounded-xl p-5 mb-8">
                     <div className="flex justify-between items-center mb-4">
-                        <h4 className="flex items-center gap-2 text-base font-bold text-white">
+                        <h4 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
                             <span className="material-symbols-outlined text-primary">menu_book</span>
                             Versículos para estudiar
                         </h4>
-                        <span className="text-xs font-medium text-primary/70 bg-primary/10 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-primary/70 bg-white dark:bg-primary/10 px-2 py-1 rounded-full border border-blue-100 dark:border-transparent">
                             {verses.length} citas
                         </span>
                     </div>
@@ -1291,7 +1241,7 @@ const DailyLessonView: React.FC<{
                             <button
                                 key={i}
                                 onClick={() => onVerseClick?.(verse)}
-                                className="bg-[#1a1b26] hover:bg-white hover:text-black text-primary border border-primary/30 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 cursor-pointer text-left flex items-center justify-between group/verse active:scale-[0.98]"
+                                className="bg-white dark:bg-[#1a1b26] hover:bg-primary/5 dark:hover:bg-white hover:text-primary dark:hover:text-black text-primary border border-blue-100 dark:border-primary/30 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 cursor-pointer text-left flex items-center justify-between group/verse active:scale-[0.98]"
                             >
                                 <span className="truncate mr-2 font-medium">{verse}</span>
                                 <span className="material-symbols-outlined text-[16px] opacity-0 group-hover/verse:opacity-100 transition-opacity -ml-4 group-hover/verse:ml-0">open_in_new</span>
@@ -1321,15 +1271,15 @@ const DailyLessonView: React.FC<{
             )}
 
             {lesson.reflection_questions && lesson.reflection_questions.length > 0 && (
-                <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-6">
-                    <h4 className="flex items-center gap-2 text-base font-bold text-white mb-4">
-                        <span className="material-symbols-outlined text-indigo-400">psychology</span>
+                <div className="bg-indigo-50 dark:bg-gradient-to-br dark:from-indigo-500/10 dark:to-purple-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl p-6">
+                    <h4 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
+                        <span className="material-symbols-outlined text-indigo-500 dark:text-indigo-400">psychology</span>
                         Preguntas de reflexión
                     </h4>
                     <ul className="space-y-4">
                         {lesson.reflection_questions.map((q, i) => (
-                            <li key={i} className="flex gap-3 text-gray-300">
-                                <span className="bg-indigo-500/20 text-indigo-300 size-6 min-w-[24px] rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                            <li key={i} className="flex gap-3 text-gray-700 dark:text-gray-300">
+                                <span className="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 size-6 min-w-[24px] rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
                                     {i + 1}
                                 </span>
                                 <span className="text-base">{q}</span>

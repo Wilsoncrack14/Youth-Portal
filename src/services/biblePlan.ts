@@ -46,7 +46,7 @@ export const BIBLE_CHAPTER_COUNTS: { [key: string]: number } = {
     "3 Juan": 1, "Judas": 1, "Apocalipsis": 22
 };
 
-export const START_DATE = new Date('2026-01-01T00:00:00');
+export const START_DATE = new Date('2025-04-17T00:00:00');
 
 export const getNextReadingTime = (): Date => {
     const now = new Date();
@@ -245,7 +245,13 @@ export const ABBREVIATIONS: { [key: string]: string } = {
     "Lam.": "Lamentaciones", "Lm.": "Lamentaciones",
     "Eze.": "Ezequiel", "Ez.": "Ezequiel", "Ez": "Ezequiel",
     "Dan.": "Daniel", "Dn.": "Daniel", "Dan": "Daniel",
-    "Os.": "Oseas", "Os": "Oseas",
+    "Os.": "Oseas", "Os": "Oseas", "Ose.": "Oseas", "Ose": "Oseas",
+    "Joel": "Joel", "Jl.": "Joel", "Jl": "Joel",
+    "Amos": "Amos", "Am.": "Amos", "Am": "Amos",
+    "Abd.": "Abdias", "Abd": "Abdias",
+    "Jon.": "Jonas", "Jon": "Jonas",
+    "Miq.": "Miqueas", "Mq.": "Miqueas", "Miq": "Miqueas", "Mq": "Miqueas",
+    "Nah.": "Nahum", "Nah": "Nahum", "Na.": "Nahum",
     "Hab.": "Habacuc", "Hab": "Habacuc",
     "Sof.": "Sofonias", "Sof": "Sofonias",
     "Hag.": "Hageo", "Hg.": "Hageo",

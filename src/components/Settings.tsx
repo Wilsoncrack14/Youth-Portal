@@ -172,7 +172,7 @@ const Settings: React.FC = () => {
       const fileName = `${user.id}-${Date.now()}.jpg`;
       const filePath = `avatars/${fileName}`;
 
-      console.log('🔵 [1] Uploading to:', filePath);
+
 
       const { error: uploadError } = await supabase.storage
         .from('profiles')
@@ -186,13 +186,13 @@ const Settings: React.FC = () => {
         throw uploadError;
       }
 
-      console.log('✅ [2] Upload successful');
+
 
       const { data: { publicUrl } } = supabase.storage
         .from('profiles')
         .getPublicUrl(filePath);
 
-      console.log('🔵 [3] Public URL:', publicUrl);
+
 
       const { error: updateError } = await supabase
         .from('profiles')
@@ -204,7 +204,7 @@ const Settings: React.FC = () => {
         throw updateError;
       }
 
-      console.log('✅ [4] Database updated successfully');
+
 
       // Verify the update
       const { data: verifyData } = await supabase
@@ -213,11 +213,11 @@ const Settings: React.FC = () => {
         .eq('id', user.id)
         .single();
 
-      console.log('🔵 [5] Verified avatar_url in DB:', verifyData?.avatar_url);
 
-      console.log('🔵 [6] Refreshing profile context...');
+
+
       await refreshProfile();
-      console.log('✅ [7] Profile refreshed');
+
 
       showToastMessage('Foto actualizada exitosamente');
       closePreviewModal();
