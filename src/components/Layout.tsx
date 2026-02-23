@@ -211,7 +211,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 bg-background-light dark:bg-background-dark relative h-screen">
         {/* Top Header */}
-        <header className="h-20 flex items-center justify-between px-8 border-b border-[#292938] bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-20">
+        <header className="h-20 flex items-center justify-between px-4 sm:px-8 border-b border-[#292938] bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-20">
           <div className="lg:hidden flex items-center gap-3 text-gray-900 dark:text-white">
             <span className="material-symbols-outlined cursor-pointer" onClick={() => setIsMobileMenuOpen(true)}>menu</span>
             <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative z-50 flex items-center gap-2">
+            <div className="relative z-50 flex items-center gap-1 sm:gap-2">
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#292938] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -262,7 +262,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userStats }) => {
               {isNotificationsOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1b26] rounded-2xl shadow-xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right">
+                  <div className="fixed sm:absolute top-20 sm:top-full left-4 sm:left-auto right-4 sm:right-0 mt-4 sm:mt-2 w-auto sm:w-80 bg-white dark:bg-[#1a1b26] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right">
                     <div className="p-4 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
                       <h3 className="font-bold text-gray-900 dark:text-white">Notificaciones</h3>
                       {unreadCount > 0 && (

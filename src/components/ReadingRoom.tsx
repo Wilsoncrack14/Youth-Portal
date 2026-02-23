@@ -16,36 +16,10 @@ const getTodayDayName = () => {
   return days[new Date().getDay()];
 };
 
+import BibleTextRenderer from './BibleTextRenderer';
+
 const formatBibleText = (text: string) => {
-  if (!text) return null;
-
-  // Split by verse numbers like [1], [2], etc.
-  // The regex captures the number so we can use it in the map
-  const parts = text.split(/\[(\d+)\]/);
-
-  return (
-    <div className="space-y-4">
-      {parts.map((part, index) => {
-        // If the part is a number (from the capture group), render it as superscript
-        // Note: split with capture group returns: [text, capture, text, capture...]
-        // So odd indices are the captured numbers, even indices are the text content.
-
-        // HOWEVER, we want to group the number with its following text.
-        // Let's reorganize.
-
-        // Actually, a simpler way for React rendering:
-        if (part.match(/^\d+$/)) {
-          // It's a verse number
-          return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
-        } else if (part.trim() === "") {
-          return null;
-        } else {
-          // It's text
-          return <span key={index} className="leading-relaxed hover:bg-gray-100 dark:hover:bg-white/5 transition-colors rounded px-0.5">{part}</span>;
-        }
-      })}
-    </div>
-  );
+  return <BibleTextRenderer text={text} className="space-y-4" />;
 };
 
 

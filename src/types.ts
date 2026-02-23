@@ -34,6 +34,7 @@ export interface RankingEntry {
   rank: number;
   name: string;
   xp: number;
+  level: number;
   avatar: string;
   title: string;
   isMe?: boolean;

@@ -13,28 +13,11 @@ interface DashboardProps {
   monthlyActivity: DailyActivity[]; // Add prop type
 }
 
-// Format Bible text with verse numbers as superscripts (same as ReadingRoom)
+import BibleTextRenderer from './BibleTextRenderer';
+
+// Format Bible text with verse numbers as superscripts
 const formatBibleText = (text: string) => {
-  if (!text) return null;
-
-  // Split by verse numbers like [1], [2], etc.
-  const parts = text.split(/\[(\d+)\]/);
-
-  return (
-    <span className="inline">
-      {parts.map((part, index) => {
-        if (part.match(/^\d+$/)) {
-          // It's a verse number
-          return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
-        } else if (part.trim() === "") {
-          return null;
-        } else {
-          // It's text
-          return <span key={index}>{part}</span>;
-        }
-      })}
-    </span>
-  );
+  return <BibleTextRenderer text={text} className="inline" />;
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, monthlyActivity }) => {

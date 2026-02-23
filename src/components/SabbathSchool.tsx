@@ -9,6 +9,7 @@ import { generateQuizQuestion, generateLessonSummary, getSabbathContext } from '
 import WeeklyProgress from './WeeklyProgress';
 
 import { extractHighlightedVerse } from '../services/dailyVerse';
+import { prefetchChapter, resolveBookName } from '../services/biblePlan';
 
 interface Quarter {
     id: string;
@@ -461,7 +462,48 @@ const SabbathSchool: React.FC = () => {
         return dailyLessons.find(l => l.day === prevDayName);
     };
 
-    // Fetch AI Summaries when day changes
+    // --- PREFETCHING BIBLE VERSES ---
+    useEffect(() => {
+        const prefetchVerses = async () => {
+            const lesson = getCurrentDayLesson();
+            if (!lesson) return;
+
+            // 1. Gather all unique book/chapter references
+            const prefetchQueue = new Set<string>();
+
+            // From the explicit verses list
+            lesson.bible_verses?.forEach(ref => {
+                // Parse "Book Chapter:Verses"
+                const match = ref.match(/([0-9 a-zA-ZáéíóúÁÉÍÓÚñÑ.]+)\s+(\d+):/);
+                if (match) {
+                    const book = match[1].trim();
+                    const chapter = parseInt(match[2]);
+                    prefetchQueue.add(`${book}|${chapter}`);
+                }
+            });
+
+            // From the lesson content (using the same pattern as BibleTextParser)
+            const bibleRefPattern = /(\d?\s?[A-ZÁ-Ú][a-záéíóúñ]+\.?\s+(\d+):\d+)/g;
+            let match;
+            while ((match = bibleRefPattern.exec(lesson.content)) !== null) {
+                const book = match[1].split(' ').slice(0, -1).join(' ').trim();
+                const chapter = parseInt(match[2]);
+                prefetchQueue.add(`${book}|${chapter}`);
+            }
+
+            // 2. Trigger prefetching in parallel
+            prefetchQueue.forEach(entry => {
+                const [book, chapter] = entry.split('|');
+                const resolved = resolveBookName(book);
+                prefetchChapter(resolved, parseInt(chapter));
+            });
+        };
+
+        if (selectedWeek && selectedDay && dailyLessons.length > 0) {
+            prefetchVerses();
+        }
+    }, [selectedWeek, selectedDay, dailyLessons]);
+
     useEffect(() => {
         const fetchSummaries = async () => {
             const currentLesson = getCurrentDayLesson();

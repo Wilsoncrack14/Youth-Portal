@@ -162,9 +162,26 @@ export const fetchDailyChapter = async (
     const apiBook = normalize(resolvedBook);
 
     const cacheKey = `${apiBook}-${chapter}`;
+    const storageKey = `bible_cache_${cacheKey}`;
 
+    // 1. Check in-memory cache
     if (chapterCache.has(cacheKey)) {
         return chapterCache.get(cacheKey)!;
+    }
+
+    // 2. Check localStorage
+    try {
+        const cached = localStorage.getItem(storageKey);
+        if (cached) {
+            const parsed = JSON.parse(cached) as BibleChapter;
+            // Add a basic validation to ensure it's a valid object
+            if (parsed && typeof parsed.text === 'string' && parsed.text.length > 50) {
+                chapterCache.set(cacheKey, parsed);
+                return parsed;
+            }
+        }
+    } catch (e) {
+        console.warn("Error reading Bible cache from localStorage:", e);
     }
 
     try {
@@ -204,18 +221,32 @@ export const fetchDailyChapter = async (
         // Save to cache
         chapterCache.set(cacheKey, result);
 
+        // Save to localStorage
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(result));
+        } catch (e) {
+            console.warn("Could not save to localStorage (maybe quota full?):", e);
+        }
+
         return result;
 
     } catch (error: any) {
         console.error("Error fetching (Supabase):", error);
 
         return {
-            book: book!,
-            chapter: chapter!,
+            book: targetBook || "Desconocido",
+            chapter: targetChapter || 0,
             text: `Error cargando lectura.\n\nDetalle: ${error.message}`,
             reference: "Sin conexión"
         };
     }
+};
+
+/**
+ * Prefetches a chapter in the background without returning it.
+ */
+export const prefetchChapter = (book: string, chapter: number) => {
+    fetchDailyChapter(book, chapter).catch(() => { });
 };
 // Helper to extract verses from the full chapter text
 // Text format is typically: "[1] Verse 1 text\n[2] Verse 2 text..."

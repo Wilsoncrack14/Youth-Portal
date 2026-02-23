@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchDailyChapter, resolveBookName, BIBLE_BOOKS_List, getVerseText } from '../services/biblePlan';
+import BibleTextRenderer from './BibleTextRenderer';
 
 interface BibleSearchModalProps {
     isOpen: boolean;
@@ -116,21 +117,21 @@ const BibleSearchModal: React.FC<BibleSearchModalProps> = ({ isOpen, onClose, in
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-2xl bg-[#1e1e2d] border border-[#292938] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="w-full max-w-2xl bg-white dark:bg-[#1e1e2d] border border-gray-200 dark:border-[#292938] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
 
                 {/* Search Header */}
-                <div className="p-4 border-b border-[#292938] flex items-center gap-3 bg-[#14151f]">
+                <div className="p-4 border-b border-gray-100 dark:border-[#292938] flex items-center gap-3 bg-gray-50 dark:bg-[#14151f]">
                     <span className="material-symbols-outlined text-primary">search</span>
                     <input
                         autoFocus
                         type="text"
-                        className="flex-1 bg-transparent text-white text-lg placeholder-gray-500 focus:outline-none"
+                        className="flex-1 bg-transparent text-gray-900 dark:text-white text-lg placeholder-gray-500 focus:outline-none"
                         placeholder="Busca un pasaje (ej. Juan 3:16)"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
                     />
-                    <button onClick={onClose} className="text-gray-400 hover:text-white">
+                    <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                         <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
@@ -140,7 +141,7 @@ const BibleSearchModal: React.FC<BibleSearchModalProps> = ({ isOpen, onClose, in
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-10 gap-3">
                             <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-gray-400">Buscando en la Palabra...</p>
+                            <p className="text-gray-500 dark:text-gray-400">Buscando en la Palabra...</p>
                         </div>
                     ) : error ? (
                         <div className="text-center py-10">
@@ -150,13 +151,11 @@ const BibleSearchModal: React.FC<BibleSearchModalProps> = ({ isOpen, onClose, in
                         </div>
                     ) : results ? (
                         <div className="flex flex-col gap-4">
-                            <h2 className="text-2xl font-bold text-white flex items-baseline gap-2">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
                                 {results.book} {results.chapter}
                                 <span className="text-sm text-primary font-normal bg-primary/10 px-2 py-0.5 rounded-full">Resultado</span>
                             </h2>
-                            <div className="font-serif text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                {results.text}
-                            </div>
+                            <BibleTextRenderer text={results.text} />
                         </div>
                     ) : (
                         <div className="text-center py-12 text-gray-500">
@@ -167,7 +166,7 @@ const BibleSearchModal: React.FC<BibleSearchModalProps> = ({ isOpen, onClose, in
                                     <button
                                         key={ex}
                                         onClick={() => { setQuery(ex); handleSearch(ex); }}
-                                        className="px-3 py-1 bg-[#292938] hover:bg-primary/20 hover:text-primary rounded-full text-xs transition-colors"
+                                        className="px-3 py-1 bg-gray-100 dark:bg-[#292938] text-gray-600 dark:text-gray-400 hover:bg-primary/20 hover:text-primary rounded-full text-xs transition-colors"
                                     >
                                         {ex}
                                     </button>

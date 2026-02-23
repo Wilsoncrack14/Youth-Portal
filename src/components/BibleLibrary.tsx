@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { fetchDailyChapter, BIBLE_BOOKS_List, getVerseText } from '@/services/biblePlan';
+import BibleTextRenderer from './BibleTextRenderer';
 
 const BibleLibrary: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -234,21 +235,8 @@ const BibleLibrary: React.FC = () => {
                                         <span className="text-gray-500 text-sm font-bold tracking-wider uppercase">Reina-Valera 1960</span>
                                     </div>
 
-                                    <article className="font-serif text-gray-800 dark:text-gray-300 text-xl leading-9 md:leading-10 max-w-prose">
-                                        {(() => {
-                                            if (!chapterData?.text) return null;
-                                            // Split by verse numbers like [1], [2], etc.
-                                            const parts = chapterData.text.split(/\[(\d+)\]/);
-                                            return parts.map((part, index) => {
-                                                if (part.match(/^\d+$/)) {
-                                                    return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
-                                                } else if (part.trim() === "") {
-                                                    return null;
-                                                } else {
-                                                    return <span key={index} className="hover:bg-gray-100 dark:hover:bg-white/5 transition-colors rounded px-0.5">{part}</span>;
-                                                }
-                                            });
-                                        })()}
+                                    <article className="max-w-prose">
+                                        <BibleTextRenderer text={chapterData.text} className="text-xl leading-9 md:leading-10" />
                                     </article>
 
                                     {/* Mobile Navigation Footer */}

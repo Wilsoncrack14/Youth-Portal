@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getVerseText, resolveBookName } from '../services/biblePlan';
+import BibleTextRenderer from './BibleTextRenderer';
 
 interface BibleVerseModalProps {
     isOpen: boolean;
@@ -69,18 +70,18 @@ const BibleVerseModal: React.FC<BibleVerseModalProps> = ({ isOpen, onClose, refe
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-[#1a1b26] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl transform transition-all scale-100 p-6 relative">
+            <div className="bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl transform transition-all scale-100 p-6 relative">
 
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                    className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                     <span className="material-symbols-outlined">close</span>
                 </button>
 
                 <div className="mb-6">
                     <span className="text-xs font-bold text-accent-gold uppercase tracking-wider mb-1 block">Lectura Bíblica</span>
-                    <h3 className="text-2xl font-bold text-white">{reference}</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{reference}</h3>
                 </div>
 
                 <div className="min-h-[100px] max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
@@ -94,26 +95,11 @@ const BibleVerseModal: React.FC<BibleVerseModalProps> = ({ isOpen, onClose, refe
                             {error}
                         </div>
                     ) : (
-                        <div className="text-gray-300 text-lg leading-relaxed font-serif">
-                            {(() => {
-                                if (!text) return null;
-                                // Split by verse numbers like [1], [2], etc.
-                                const parts = text.split(/\[(\d+)\]/);
-                                return parts.map((part, index) => {
-                                    if (part.match(/^\d+$/)) {
-                                        return <sup key={index} className="text-xs text-primary font-bold mr-1 select-none">{part}</sup>;
-                                    } else if (part.trim() === "") {
-                                        return null;
-                                    } else {
-                                        return <span key={index} className="hover:bg-white/5 transition-colors rounded px-0.5">{part}</span>;
-                                    }
-                                });
-                            })()}
-                        </div>
+                        <BibleTextRenderer text={text} className="text-lg" />
                     )}
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
+                <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/10 flex justify-end">
                     <a
                         href={`https://www.biblegateway.com/passage/?search=${encodeURIComponent(reference || '')}&version=RVR1960`}
                         target="_blank"

@@ -47,13 +47,40 @@ body {
 @keyframes fade-in-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes crown-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+    transform: translateX(-50%) rotate(-5deg);
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.8));
+    transform: translateX(-50%) rotate(5deg);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-crown {
+  animation: crown-glow 2s ease-in-out infinite;
 }
 
 /* Custom Scrollbar */
